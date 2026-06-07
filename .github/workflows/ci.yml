@@ -13,6 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
       - name: Install Rust
         run: |
           rustup toolchain install 1.96.0 --profile minimal --component rustfmt,clippy

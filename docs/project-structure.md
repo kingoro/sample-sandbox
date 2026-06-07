@@ -11,6 +11,9 @@
 ├── Cargo.lock                 # workspace依存versionの固定
 ├── rust-toolchain.toml        # 通常開発用Rust 1.96.0
 ├── Makefile                   # local/CI共通の操作入口
+├── Dockerfile                 # 固定tool入り開発image
+├── compose.yaml               # 開発containerとmount/cache設定
+├── .dockerignore              # Docker build対象外の生成物
 ├── README.md                  # repository全体の入口
 ├── docs/
 │   ├── development-guide.md   # 環境構築と開発HowTo

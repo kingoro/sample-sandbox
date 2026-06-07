@@ -26,20 +26,30 @@ C APIの利用者にはopaque handleだけを公開する。ヒープを使用�
 
 ## Quick start
 
-LinuxまたはWSL2を基準環境とする。初回だけ
-[環境構築手順](docs/development-guide.md)に従って必要ツールを導入する。
+Dockerを利用できる場合は、ホストへRustや品質toolを個別導入せずに開始できる。
 
 ```sh
+# Docker Desktop/Engineとの接続確認
+make docker-ready
+
+# 初回またはtool更新後
+make docker-build
+
 # 日常のRust/Cテスト
-make test
+make docker-test
 
-# format、静的解析、テスト、coverage、移植性buildを含む通常品質ゲート
-make check
-
-# Miriとfuzz smokeを追加したmerge前相当の検査
-make extended-check
+# 通常品質ゲート
+make docker-check
 ```
 
+対話shellを開く場合:
+
+```sh
+make docker-shell
+```
+
+Dockerを使わずLinuxまたはWSL2へ直接構築する方法、merge前検査、Docker Desktopの
+WSL連携は[環境構築手順](docs/development-guide.md)を参照する。
 利用可能なMake targetは次で確認できる。
 
 ```sh
@@ -104,6 +114,7 @@ Miriとfuzzも実行する。詳細な対象、tool、レポートの読み方�
 - libraryの用途を特定systemから切り離し、隠蔽されたメモリ操作APIとして説明
 - repository全体のdirectory構成と各fileの責務
 - OS package、固定Rust toolchain、Cargo toolを含む環境構築
+- Dockerによる再現可能な開発環境と品質ゲートの実行方法
 - 日常開発、テスト、品質ゲート、CIとの対応
 - 使用するtest framework・解析toolの役割と公式資料へのリンク
 - fuzz targetの入力形式、検査内容、再現、最小化、生成物

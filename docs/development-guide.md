@@ -1,8 +1,94 @@
 # 環境構築・開発HowTo
 
-## 対応環境
+## 推奨: Dockerで構築する
 
-CIと同じLinuxを基準とし、WindowsではWSL2の利用を推奨する。
+Dockerを使うと、固定Rust toolchain、C compiler、CMake、Cppcheck、Miri、fuzz、
+coverage、metrics toolをimage内へまとめて導入できる。ホストに必要なのは
+Git、Docker Engine、Docker Compose v2、GNU Makeだけである。
+
+- Linux: [Docker Engineの導入](https://docs.docker.com/engine/install/)
+- Windows/WSL2:
+  [Docker Desktop WSL 2 backend](https://docs.docker.com/desktop/features/wsl/)
+- macOS: [Docker Desktopの導入](https://docs.docker.com/desktop/setup/install/mac-install/)
+
+WindowsではrepositoryをWSL2のLinux filesystem内へcloneして実行する。
+Docker DesktopのSettingsから、使用するWSL distributionとの連携を有効にする。
+WSL2でGNU Makeが未導入の場合は`sudo apt-get install make`で導入する。
+
+### 1. Imageをbuildする
+
+repositoryルートで実行する。
+
+```sh
+make docker-build
+```
+
+imageにはCIと同じ固定versionのtoolを導入する。初回はCargo toolのcompileを含む
+ため時間がかかる。`Dockerfile`、Rust version、品質tool versionを変更した場合は
+再buildする。
+
+GNU Makeを使わず直接実行する場合:
+
+```sh
+LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose build dev
+```
+
+### 2. Testを実行する
+
+```sh
+# Rust testとCMake/CTest結合テスト
+make docker-test
+
+# 通常品質ゲート
+make docker-check
+
+# Miri、fuzz、Cppcheckを含むmerge前相当の検査
+make docker-extended-check
+```
+
+### 3. 対話shellで開発する
+
+```sh
+make docker-shell
+```
+
+shell内では通常のMake targetをそのまま使える。
+
+```sh
+make test
+make check
+cargo test <test-name>
+```
+
+### Docker内のfile配置
+
+repository全体を`/workspace`へbind mountする。コンテナはホストと同じUID/GIDで
+動くため、編集ファイルや`build/reports`がroot所有になることを避ける。
+
+Cargoがdownloadしたcrate indexとsourceはDocker named volumeへcacheする。
+`target/`、`build/`、fuzz corpus/artifactはrepository側へ生成されるため、
+コンテナを削除しても残る。
+
+```sh
+# 停止済みcontainerを含めてCompose環境を削除
+docker compose down
+
+# Cargo download cacheも削除
+docker compose down --volumes
+```
+
+### Docker構成ファイル
+
+| File | 役割 |
+| --- | --- |
+| `Dockerfile` | OS package、Rust toolchain、Cargo toolを固定して導入 |
+| `compose.yaml` | source mount、UID/GID、Cargo cache、実行serviceを定義 |
+| `.dockerignore` | build contextから生成物とGit metadataを除外 |
+
+## 代替: Hostへ直接構築する
+
+Dockerを使わない場合は、CIと同じLinuxを基準とする。WindowsではWSL2を推奨する。
+
 通常のCargo buildは他のOSでも動作し得るが、全品質ゲートには次の制約がある。
 
 - C静的解析でGCCの`-fanalyzer`を使う
@@ -10,7 +96,7 @@ CIと同じLinuxを基準とし、WindowsではWSL2の利用を推奨する。
 - CMake/CTestでLinux用static libraryをC executableへlinkする
 - CIの再現環境はGitHub ActionsのUbuntu runnerである
 
-## 1. OS package
+### 1. OS package
 
 UbuntuまたはWSL2 Ubuntu:
 
@@ -29,7 +115,7 @@ sudo apt-get install -y \
 必要条件はCMake 3.20以上、GCCの`-fanalyzer`を利用できるC compiler、
 Python 3、GNU Makeである。別distributionでは同等のpackageを導入する。
 
-## 2. Rust
+### 2. Rust
 
 [Rust公式の導入手順](https://doc.rust-lang.org/stable/cargo/getting-started/installation.html)
 に従って`rustup`を導入し、新しいshellを開く。
@@ -53,7 +139,7 @@ repository直下では`rust-toolchain.toml`によりRust 1.96.0が自動選択�
 nightlyを使うtargetだけ、Makefileが明示的に
 `+nightly-2026-06-06`を指定する。
 
-## 3. Cargo tool
+### 3. Cargo tool
 
 品質ゲートで使うversionをCIと揃えて導入する。
 
@@ -67,7 +153,7 @@ cargo install rust-code-analysis-cli --version 0.0.25 --locked
 tool更新時は[高度検証](../memory-buffer/docs/advanced-verification.md)にある
 固定version表、CI設定、本文書を同じ変更で更新する。
 
-## 4. 導入確認
+### 4. 導入確認
 
 ```sh
 rustc --version
@@ -121,6 +207,11 @@ make extended-check
 | `make cppcheck` | C利用例の追加静的解析 | Cppcheck |
 | `make check` | 通常の品質ゲート一式 | 上記の通常検査tool |
 | `make extended-check` | `check`にMiriとfuzzを追加 | 全tool |
+| `make docker-build` | 固定tool入りDocker imageをbuild | Docker、Compose v2 |
+| `make docker-shell` | 開発containerのshellを開く | Docker image |
+| `make docker-test` | container内で`make test` | Docker image |
+| `make docker-check` | container内で`make check` | Docker image |
+| `make docker-extended-check` | container内でmerge前検査 | Docker image |
 
 全targetの短い説明は`make help`で表示できる。
 
@@ -201,6 +292,34 @@ CIは品質レポートを`quality-report` artifactとして保存する。local
 `build/reports/`である。
 
 ## Troubleshooting
+
+### WSL2で`docker: command not found`
+
+1. WindowsでDocker Desktopを起動する。
+2. `Settings > Resources > WSL Integration`を開く。
+3. `Enable integration with my default WSL distro`または使用中の`Ubuntu`を有効にする。
+4. `Apply & restart`を押す。
+5. WSL shellを開き直す。
+
+```sh
+make docker-ready
+```
+
+まだ失敗する場合はWindows PowerShellで`wsl --shutdown`を実行し、Docker Desktopを
+再起動してからUbuntuを開き直す。
+
+### Docker生成物がroot所有になる
+
+`make docker-*`は`id -u`と`id -g`をimage buildへ渡す。過去にrootで生成したfileが
+残っている場合は所有者を修正した後、`make docker-build`でimageを作り直す。
+
+### Docker image内のtoolを更新したい
+
+`Dockerfile`のversionと、CI・品質資料の固定versionを同時に更新してからbuildする。
+
+```sh
+docker compose build --no-cache dev
+```
 
 ### cross buildで`can't find crate for core`
 

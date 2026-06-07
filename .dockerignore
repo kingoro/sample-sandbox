@@ -1,0 +1,8 @@
+.git
+.agents
+.codex
+build
+target
+fuzz/artifacts
+fuzz/corpus
+fuzz/target

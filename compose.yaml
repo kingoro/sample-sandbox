@@ -1,0 +1,21 @@
+services:
+  dev:
+    build:
+      context: .
+      args:
+        USER_ID: ${LOCAL_UID:-1000}
+        GROUP_ID: ${LOCAL_GID:-1000}
+    working_dir: /workspace
+    init: true
+    volumes:
+      - .:/workspace
+      - cargo-registry:/home/developer/.cargo/registry
+      - cargo-git:/home/developer/.cargo/git
+    environment:
+      CARGO_HOME: /home/developer/.cargo
+      CARGO_TERM_COLOR: always
+    command: sleep infinity
+
+volumes:
+  cargo-registry:
+  cargo-git:
