@@ -1,9 +1,28 @@
-.PHONY: check extended-check test docs header header-check static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke mcu-check clean
+.PHONY: help check extended-check test docs header header-check static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke mcu-check clean
 
 BUILD_DIR ?= build/memory-buffer
 REPORT_DIR ?= build/reports
 MCU_TARGET ?= thumbv7em-none-eabi
 NIGHTLY_TOOLCHAIN ?= nightly-2026-06-06
+
+help:
+	@printf '%s\n' \
+		'Development targets:' \
+		'  test             Rust testとCMake/CTest結合テスト' \
+		'  static-analysis  rustfmt、Clippy、GCC -fanalyzer' \
+		'  docs             Rustdoc生成' \
+		'  header           cbindgen header再生成' \
+		'  header-check     生成headerのdrift検査' \
+		'  coverage         単体・結合branch coverage検査' \
+		'  metrics          CC・MIレポート生成' \
+		'  quality-report   coverage・metricsのHTML index生成' \
+		'  mcu-check        MCU target向けno_std cross build' \
+		'  miri             Miriによる単体テスト' \
+		'  fuzz-smoke       libFuzzer短時間検査' \
+		'  cppcheck         C利用例のCppcheck' \
+		'  check            通常品質ゲート一式' \
+		'  extended-check   checkにMiri・fuzzを追加' \
+		'  clean            通常Cargo・CMake生成物を削除'
 
 check: header-check static-analysis test docs mcu-check quality-report
 
