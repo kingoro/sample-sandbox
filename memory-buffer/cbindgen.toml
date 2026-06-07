@@ -1,0 +1,38 @@
+language = "C"
+cpp_compat = true
+include_guard = "MEMORY_BUFFER_GENERATED_H"
+documentation = false
+usize_is_size_t = true
+style = "tag"
+sort_by = "Name"
+
+header = """
+/* 自動生成ファイル。直接編集しないこと。 */
+"""
+
+[parse]
+parse_deps = false
+
+[export]
+include = [
+  "MbBufferInfo",
+  "MbResult",
+  "MB_CONTEXT_ALIGNMENT",
+  "MB_CONTEXT_SIZE",
+  "MB_MAX_BUFFERS",
+  "mb_alloc",
+  "mb_free",
+  "mb_get_info",
+  "mb_init",
+  "mb_map",
+  "mb_read",
+  "mb_reset",
+  "mb_set_length",
+  "mb_unmap",
+  "mb_write",
+]
+
+[export.rename]
+"MbBufferInfo" = "mb_buffer_info_generated_t"
+"MbResult" = "mb_result_generated_t"
+
