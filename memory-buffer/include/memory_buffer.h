@@ -111,7 +111,7 @@ mb_result_t mb_read(
 
 /**
  * 割当capacityを変えずに論理長を設定する。
- * 論理長を伸ばす場合、新たな範囲はDMAまたはmap pointer経由で初期化済みで
+ * 論理長を伸ばす場合、新たな範囲はmap pointerなどで初期化済みで
  * なければならない。map中はMB_BUSYを返す。
  */
 mb_result_t mb_set_length(
@@ -131,8 +131,8 @@ mb_result_t mb_get_info(
  * map中はmb_read、mb_write、mb_set_length、mb_freeを禁止する。
  * map pointer経由で書き込んだ場合は、unmap後にmb_set_lengthを呼ぶ。
  *
- * このAPIはDMAとzero-copy I/O用である。mb_unmapより前にdeviceまたはtaskが
- * pointerの利用を停止したことを呼出側が保証する。
+ * このAPIはcopyを介さない直接access用である。mb_unmapより前に、非同期処理を
+ * 含む全利用者がpointerの利用を停止したことを呼出側が保証する。
  */
 mb_result_t mb_map(
     mb_context_t *context,

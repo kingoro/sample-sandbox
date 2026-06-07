@@ -115,7 +115,7 @@ make extended-check
 | `make coverage` | 単体/結合branch coverageと閾値検査 | nightly、cargo-llvm-cov、Python |
 | `make metrics` | CC、認知的複雑度、MIのHTML生成 | Python、rust-code-analysis-cli |
 | `make quality-report` | coverageとmetricsのHTML index生成 | 上記coverage/metrics tool |
-| `make mcu-check` | `thumbv7em-none-eabi`向け`no_std` build | stable Rust、target追加 |
+| `make portable-check` | 32 bit target向け`no_std` build | stable Rust、target追加 |
 | `make miri` | Rust memory modelに基づく単体テスト | nightly、Miri |
 | `make fuzz-smoke` | libFuzzerを2000回実行 | nightly、cargo-fuzz、C++ compiler |
 | `make cppcheck` | C利用例の追加静的解析 | Cppcheck |
@@ -179,11 +179,11 @@ fuzz入力の形式、再現、最小化は[fuzz README](../fuzz/README.md)に�
 1. `memory-buffer/include/memory_buffer.h`をC sourceからincludeする。
 2. `cargo build -p memory-buffer --release --no-default-features`で
    `target/release/libmemory_buffer.a`を生成する。
-3. static libraryをfirmwareのlink設定へ追加する。
+3. static libraryをC applicationのlink設定へ追加する。
 4. 呼出側が`mb_context_t`とpayload arenaを静的に確保する。
 5. 起動時に`mb_init`し、`mb_alloc`、`mb_write`/`mb_read`、`mb_free`を使う。
 
-具体的なCコード、DMA/zero-copy、error処理は
+具体的なCコード、直接access、error処理は
 [memory-buffer利用手順](../memory-buffer/docs/usage.md)を参照する。
 関数ごとの引数、戻り値、事前条件は
 [C API仕様](../memory-buffer/docs/api.md)に記載する。
@@ -202,9 +202,9 @@ CIは品質レポートを`quality-report` artifactとして保存する。local
 
 ## Troubleshooting
 
-### `can't find crate for core`
+### cross buildで`can't find crate for core`
 
-MCU targetが未導入である。
+検証用の32 bit `no_std` targetが未導入である。
 
 ```sh
 rustup target add thumbv7em-none-eabi --toolchain 1.96.0

@@ -1,8 +1,8 @@
-.PHONY: help check extended-check test docs header header-check static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke mcu-check clean
+.PHONY: help check extended-check test docs header header-check static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke portable-check mcu-check clean
 
 BUILD_DIR ?= build/memory-buffer
 REPORT_DIR ?= build/reports
-MCU_TARGET ?= thumbv7em-none-eabi
+PORTABLE_TARGET ?= thumbv7em-none-eabi
 NIGHTLY_TOOLCHAIN ?= nightly-2026-06-06
 
 help:
@@ -16,7 +16,7 @@ help:
 		'  coverage         単体・結合branch coverage検査' \
 		'  metrics          CC・MIレポート生成' \
 		'  quality-report   coverage・metricsのHTML index生成' \
-		'  mcu-check        MCU target向けno_std cross build' \
+		'  portable-check   32 bit no_std targetへのcross build' \
 		'  miri             Miriによる単体テスト' \
 		'  fuzz-smoke       libFuzzer短時間検査' \
 		'  cppcheck         C利用例のCppcheck' \
@@ -24,7 +24,7 @@ help:
 		'  extended-check   checkにMiri・fuzzを追加' \
 		'  clean            通常Cargo・CMake生成物を削除'
 
-check: header-check static-analysis test docs mcu-check quality-report
+check: header-check static-analysis test docs portable-check quality-report
 
 extended-check: check miri fuzz-smoke
 
@@ -58,9 +58,11 @@ fuzz-smoke:
 	ASAN_OPTIONS=detect_leaks=0 cargo +$(NIGHTLY_TOOLCHAIN) fuzz run operation_sequence \
 		--fuzz-dir fuzz -- -runs=2000 -max_len=4096
 
-mcu-check:
+portable-check:
 	cargo build -p memory-buffer --release --no-default-features \
-		--target $(MCU_TARGET)
+		--target $(PORTABLE_TARGET)
+
+mcu-check: portable-check
 
 coverage:
 	bash tools/coverage.sh $(REPORT_DIR)

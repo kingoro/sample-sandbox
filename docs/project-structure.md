@@ -47,13 +47,13 @@
 `memory-buffer`は`rlib`と`staticlib`を生成する。
 
 - `rlib`: Rustの単体・結合テストで使用する
-- `staticlib`: C firmwareからlinkする`libmemory_buffer.a`
+- `staticlib`: C applicationからlinkする`libmemory_buffer.a`
 - defaultの`std` feature: host test用
-- `--no-default-features`: firmware向け`no_std` build用
+- `--no-default-features`: OS非依存の`no_std` build用
 
 主な責務と境界は
 [アーキテクチャ](../memory-buffer/docs/architecture.md)を参照する。
-C applicationへの組み込みは
+C applicationからの利用方法は
 [利用手順](../memory-buffer/docs/usage.md)、公開関数とerror codeは
 [C API仕様](../memory-buffer/docs/api.md)に記載する。
 

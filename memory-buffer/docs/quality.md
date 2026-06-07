@@ -15,7 +15,7 @@ localとCIは同じMake targetを使用し、CIではHTMLレポートをartifact
 | production関数 | Visual Studio式 MI | 35以上 |
 
 C1は`cargo-llvm-cov`のbranch coverageで計測する。branch instrumentationには
-固定したnightly toolchainが必要だが、製品buildと通常testは固定したstable
+固定したnightly toolchainが必要だが、library buildと通常testは固定したstable
 Rustを使用する。
 
 ## テスト観点
@@ -23,7 +23,7 @@ Rustを使用する。
 | 分類 | 主な観点 |
 |---|---|
 | 正常系 | alloc、write、read、info取得、freeの一連動作 |
-| 正常系 | map、DMA相当の直接access、unmap、論理長設定 |
+| 正常系 | map、直接access、unmap、論理長設定 |
 | 準正常系 | arena不足、slot上限、fragment再利用、map中busy |
 | 異常系 | null、未初期化context、無効handle、範囲外、整数overflow |
 | 異常系 | 二重free、過剰unmap、resetによる古いhandle無効化 |
@@ -42,7 +42,7 @@ Rustを使用する。
 - FFI header: `cbindgen --verify`によるRust定義とのdrift検査
 - Undefined behavior: Miriによる単体test実行
 - 操作列: libFuzzerによるAPI sequence fuzzing
-- MCU移植性: `thumbv7em-none-eabi`向け`no_std` cross build
+- 移植性: 32 bit `thumbv7em-none-eabi`向け`no_std` cross build
 
 RadonはPython向けなので使用しない。LizardはRust/CのCC確認には利用できるが、
 MIを同じ基準で取得できないため、現在は`rust-code-analysis`へ統一している。
@@ -85,17 +85,17 @@ rustup target add thumbv7em-none-eabi --toolchain 1.96.0
 CppcheckはCIでは自動導入する。localで`make cppcheck`も実行する場合はOSの
 package managerで`cppcheck`を導入する。
 
-## MCU CI
+## `no_std`移植性検査
 
-既定targetはCortex-M4/M7系の代表として`thumbv7em-none-eabi`を使用する。
-採用MCU確定後は次のように差し替える。
+hostとはpointer幅とABI条件が異なる32 bit targetの代表として
+`thumbv7em-none-eabi`を使用する。別targetを検査する場合:
 
 ```sh
-make mcu-check MCU_TARGET=<target-triple>
+make portable-check PORTABLE_TARGET=<target-triple>
 ```
 
-現段階で保証するのはcross compileまでであり、実機起動、linker script、RTOS、
-DMA cache動作はboard確定後にrunnerを追加して検証する。
+この検査が保証するのは、OSと標準libraryへ依存せず、指定targetでcompileできる
+ことまでである。特定環境での最終linkや実行時要件は利用側で検証する。
 
-cbindgen、Miri、fuzz、MCU buildの詳細、検出実績、保証範囲は
+cbindgen、Miri、fuzz、cross buildの詳細、検出実績、保証範囲は
 [高度検証](advanced-verification.md)を参照する。

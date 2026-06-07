@@ -1,7 +1,7 @@
-//! Rust/C混在firmware向けの、ヒープを使わないバッファ所有権管理。
+//! C ABIを持つ、ヒープを使わないメモリバッファ所有権ライブラリ。
 //!
 //! このcrateは、呼出側が提供したRAM arenaの割り当てと生存期間を管理する。
-//! domain状態、protocol object、driver動作は責務に含まない。
+//! 格納データの意味、I/O、thread同期は責務に含まない。
 //!
 //! 正式な外部interfaceは`include/memory_buffer.h`のC ABIである。
 

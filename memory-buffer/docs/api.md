@@ -26,7 +26,7 @@
 ## 共通契約
 
 - 1つのcontextへのAPI callは呼出側で直列化する
-- taskと割り込みから同じcontextへ同時accessしない
+- 複数の実行主体から同じcontextへ同時accessしない
 - `mb_init`前は`mb_init`以外を呼ばない
 - context、arena、map pointerはlibraryが要求する期間中有効に保つ
 - context storageとarenaを重複させない
@@ -64,7 +64,7 @@ stateDiagram-v2
 - allocated bufferの生存期間はhandleで管理する
 - map pointerは`mb_unmap`までの排他的貸出である
 - map中の再map、read、write、length変更、free、resetは`MB_BUSY`になる
-- `mb_unmap`前にDMA、割り込み、callbackを含む全pointer利用者を停止する
+- `mb_unmap`前に非同期処理を含む全pointer利用者を停止する
 
 ## API一覧
 
@@ -124,7 +124,7 @@ capacity内へcopyし、`max(現在の論理長, offset + length)`まで論理�
 ### `mb_set_length`
 
 capacityを変えずに論理長を変更する。論理長を伸ばす場合、新たに有効化する
-範囲はDMAまたはmap pointer経由で初期化済みでなければならない。
+範囲はmap pointerなどを通して初期化済みでなければならない。
 
 成功: `MB_OK`
 
@@ -155,8 +155,9 @@ buffer全capacityへ直接accessできるpointerを排他的に貸し出す。
 
 失敗: `MB_INVALID_ARGUMENT`、`MB_NOT_INITIALIZED`、`MB_INVALID_HANDLE`
 
-## MemoryとDMA
+## 直接accessするmemory
 
-libraryはcache clean、cache invalidate、DMA alignment、memory barrierを実行しない。
-これらはtarget platformとDriverの責務である。DMA完了eventを受けただけでは
-pointer利用終了とは限らないため、遅延callbackと割り込み処理も停止確認に含める。
+libraryは、map pointerを利用する外部処理の同期、memory barrier、cache制御、
+追加alignmentを実行しない。必要な場合は呼出側が利用環境に合わせて行う。
+非同期処理の完了通知を受けただけではpointer利用終了とは限らないため、
+関連する処理がすべて終了したことを確認してから`mb_unmap`する。

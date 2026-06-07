@@ -393,7 +393,7 @@ pub unsafe extern "C" fn mb_read(
 /// # Safety
 ///
 /// `storage`には初期化済みcontextが必要で、accessは呼出側で直列化する。
-/// 論理長を伸ばす場合、新たに有効化する範囲はDMAまたはmap pointer経由で
+/// 論理長を伸ばす場合、新たに有効化する範囲はmap pointerなどで
 /// 初期化済みでなければならない。
 pub unsafe extern "C" fn mb_set_length(
     storage: *mut c_void,
@@ -516,7 +516,7 @@ pub unsafe extern "C" fn mb_unmap(storage: *mut c_void, handle: u32) -> MbResult
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     // Cへlinkするno_std libraryはABIをまたいでunwindできない。
-    // 製品firmwareは最終link時にplatform固有のfault方針へ置き換えてよい。
+    // 最終link側は利用環境に合ったfault方針へ置き換えてよい。
     loop {
         core::hint::spin_loop();
     }

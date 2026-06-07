@@ -106,12 +106,12 @@ fn normal_copy_lifecycle_works_through_public_abi() {
     }
 }
 
-/// 【準正常系・結合】DMA相当のmap貸出中は変更・解放できないことを検証する。
+/// 【準正常系・結合】map pointer貸出中は変更・解放できないことを検証する。
 ///
-/// Driverがpointerへ直接書き込む状況を再現し、完了通知後のunmap、論理長設定、
+/// 呼出側がpointerへ直接書き込む状況を再現し、unmap後の論理長設定、
 /// freeまで正常に復帰できることを確認する。
 #[test]
-fn dma_loan_blocks_mutation_until_completion() {
+fn mapped_pointer_loan_blocks_mutation_until_returned() {
     let (mut storage, _arena) = fixture();
     let mut handle = 0;
     let mut data = ptr::null_mut();

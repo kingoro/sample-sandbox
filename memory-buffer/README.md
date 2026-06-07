@@ -1,16 +1,19 @@
 # Memory Buffer
 
 `memory-buffer`は、バッファの割り当てと生存期間をRust側で管理し、
-小さなC ABIとしてファームウェアへ提供するヒープ非使用ライブラリである。
+小さなC ABIとして公開するヒープ非使用のメモリ操作ライブラリである。
+
+利用者は内部のpointerやallocation metadataを直接操作せず、opaque handleを介して
+バッファを扱う。範囲外access、解放後access、貸出中pointerとの競合をAPI境界で
+検査し、メモリ管理の詳細を呼出側から隠蔽する。
 
 ## ドキュメント
 
 - [構成・責務・状態遷移](docs/architecture.md)
-- [Cへの組み込み方・copy経路・DMAシーケンス](docs/usage.md)
+- [Cからの利用方法・copy経路・直接access](docs/usage.md)
 - [外部提供用C API仕様](docs/api.md)
 - [coverage・静的解析・CC・MIの品質ゲート](docs/quality.md)
-- [cbindgen・Miri・fuzz・MCU向け高度検証](docs/advanced-verification.md)
-- [2026年6月7日時点の全体レビュー](docs/review-2026-06-07.md)
+- [cbindgen・Miri・fuzz・cross buildによる高度検証](docs/advanced-verification.md)
 - [公開C API](include/memory_buffer.h)
 
 ## 責務
@@ -23,8 +26,8 @@
 - ポインタ貸出中の解放や変更を防止する
 - 解放またはreset後の古いhandleを拒否する
 
-Job、Workflow、Event配送、retry、protocol DTO、DMA設定、cache maintenance、
-driver状態は担当しない。
+thread同期、I/O、retry、protocol、永続化、転送制御、cache maintenanceは
+担当しない。このライブラリはbyte列の格納領域とその所有状態だけを扱う。
 
 ## 設計判断
 
@@ -34,7 +37,7 @@ driver状態は担当しない。
 - 1 contextにつき最大64バッファを管理する
 - handleに世代番号を含め、解放後アクセスを拒否する
 - 通常アクセスには境界検査付きcopy APIを使う
-- DMAやzero-copyが必要な場合だけ`mb_map`でポインタを排他的に一時貸出する
+- copyを避ける必要がある場合だけ`mb_map`でポインタを排他的に一時貸出する
 - map中のバッファは二重map、read、write、length変更、free、resetを拒否する
 - 内部lockは持たない。1 taskがcontextを所有するか、呼出側が同期する
 - first-fitで割り当て、arenaのcompactionは行わない。長期稼働する製品では
@@ -42,22 +45,23 @@ driver状態は担当しない。
 
 ## 並行実行の契約
 
-ABIは意図的にlock-freeとしている。contextは1 taskが所有するか、すべての
-操作を同じ外部lockで保護する。taskと割り込みハンドラから同じcontextへ
-同時アクセスしてはならない。
+ABIは内部lockを持たない。contextは1つの実行主体が所有するか、すべての操作を
+同じ外部lockで保護する。同じcontextへ複数の実行主体から同時アクセスしては
+ならない。
 
 ## ポインタ貸出の契約
 
-`mb_map`はDMAとzero-copyのためのAPIであり、所有権移譲ではなく一時貸出である。
+`mb_map`はcopyを介さずに内容へ直接accessするためのAPIであり、所有権移譲ではなく
+一時貸出である。
 同じバッファへ同時に複数のpointerは貸し出さない。
-`mb_unmap`より前にDMAを停止し、taskや割り込みがポインタを参照しないことを
-呼出側が保証する。cache clean/invalidateはplatform側の責務とする。
+`mb_unmap`より前に、貸し出したpointerを参照する処理がすべて終了したことを
+呼出側が保証する。
 
 ## 異常時の方針
 
 想定内の異常はすべて`mb_result_t`で返す。無効なhandleや範囲外アクセスで
 panicしない。`no_std` static library内部でpanicした場合は、C ABIをまたぐ
-unwindを防ぐためspinする。製品組み込み時にplatformのfault方針へ置き換えてよい。
+unwindを防ぐためspinする。利用環境に応じたfault方針へ置き換えてよい。
 
 ## C APIの最小例
 
@@ -72,14 +76,14 @@ mb_write(&context, handle, 0, source, source_length);
 mb_free(&context, handle);
 ```
 
-DMAなどで直接アクセスする場合は明示的に貸出・返却する。
+内容へ直接アクセスする場合は明示的に貸出・返却する。
 
 ```c
 uint8_t *data;
 size_t capacity;
 
 mb_map(&context, handle, &data, &capacity);
-/* DMAまたは直接I/Oでdataを使用する。 */
+/* dataを直接読み書きする。 */
 mb_unmap(&context, handle);
 /* data[0..bytes_written]が初期化済みの場合だけ論理長を確定する。 */
 mb_set_length(&context, handle, bytes_written);
@@ -94,7 +98,8 @@ make check
 ```
 
 `make check`はformat、Clippy、GCC静的解析、Rust/C結合test、Rustdoc生成、
-C1 coverage、CC、MI、header drift、MCU cross buildの品質ゲートを実行する。
+C1 coverage、CC、MI、header drift、32 bit `no_std` cross buildの品質ゲートを
+実行する。
 
 Miriとfuzz smokeまで含める場合:
 
@@ -111,8 +116,8 @@ make quality-report
 入口は`build/reports/index.html`。
 
 host testでは標準Rust test harnessを使うため`std` featureを有効にする。
-CMake結合buildではdefault featureを無効にし、製品で使う`no_std` static
-libraryを実際に検証する。
+CMake結合buildではdefault featureを無効にし、`no_std` static libraryを
+実際に検証する。
 
 `.github/workflows/ci.yml`により、pushとpull requestごとに同じ品質ゲートを
 実行する。いずれかが失敗した変更は完了扱いにしない。
@@ -136,5 +141,5 @@ make docs
 再利用を検証する。C結合テストでは、公開headerとstatic libraryを実際にlinkして
 実行する。不具合修正時は、問題を再現する最下層のregression testを追加する。
 
-firmware target向けにはCargoへtarget tripleを渡し、生成された
-`libmemory_buffer.a`を既存C buildへlinkする。
+別target向けにはCargoへtarget tripleを渡し、生成された`libmemory_buffer.a`を
+既存C buildへlinkする。

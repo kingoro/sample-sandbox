@@ -3,7 +3,7 @@
 ## 目的
 
 通常の単体・結合テストだけでは見つけにくいFFIの型差異、未定義動作、
-任意操作列の不具合、組み込みtarget固有のbuild failureを早期に検出する。
+任意操作列の不具合、hostと異なるtarget固有のbuild failureを早期に検出する。
 
 この文書は、追加した検証機構の役割、実行方法、導入時に実際に検出した問題を
 後から追跡できるように記録する。
@@ -20,12 +20,12 @@ flowchart LR
     UT --> MI[Miri]
 
     Rust --> FZ[libFuzzer操作列]
-    Rust --> MCU[MCU cross build]
+    Rust --> Portable[32 bit no_std cross build]
 
     HD --> CI[CI品質ゲート]
     MI --> CI
     FZ --> CI
-    MCU --> CI
+    Portable --> CI
 ```
 
 | 機構 | 主な検出対象 | Make target |
@@ -33,7 +33,7 @@ flowchart LR
 | cbindgen | Rust公開ABIと生成headerの差分 | `make header-check` |
 | Miri | Rustの未定義動作、pointer provenance、alias違反 | `make miri` |
 | cargo-fuzz | API操作順、境界値、状態遷移の組合せ不具合 | `make fuzz-smoke` |
-| MCU build | target依存の型幅、`no_std`、ABI、移植性 | `make mcu-check` |
+| cross build | target依存の型幅、`no_std`、ABI、移植性 | `make portable-check` |
 
 通常の品質ゲートは`make check`、上記をすべて含むmerge前検査は
 `make extended-check`で実行する。
@@ -121,18 +121,20 @@ cargo +nightly-2026-06-06 fuzz run operation_sequence \
 crash入力は`fuzz/artifacts`、学習corpusは`fuzz/corpus`に生成される。
 不具合を検出した場合は、最小化した入力を通常のregression testへ移植する。
 
-## MCU Cross Build
+## `no_std` Cross Build
 
-既定ではCortex-M4/M7系を想定した`thumbv7em-none-eabi`へrelease buildする。
+hostとはpointer幅が異なる代表targetとして`thumbv7em-none-eabi`へrelease
+buildする。特定用途への対応を意味するものではなく、OSや`std`への意図しない
+依存とtarget依存ABIを検出するための移植性検査である。
 
 ```sh
-make mcu-check
+make portable-check
 ```
 
-採用targetが確定した場合:
+別targetを検査する場合:
 
 ```sh
-make mcu-check MCU_TARGET=<target-triple>
+make portable-check PORTABLE_TARGET=<target-triple>
 ```
 
 ### 導入時に検出した問題
@@ -145,13 +147,13 @@ compilerやtargetのenum ABI optionへ依存せず、result codeを常に32 bit�
 
 ### 現在の保証範囲
 
-MCU検査が保証するのは、固定stable toolchainによる`no_std` cross compileまでである。
-次はboardと実行環境の確定後に追加する。
+この検査が保証するのは、固定stable toolchainによる`no_std` cross compileまで
+である。次は利用側のbuildと実行環境で検証する。
 
-- linker scriptを含む最終firmware link
-- QEMUまたは実機runnerでのtest
-- RTOSとの同期
-- DMAとcache clean/invalidate
+- 最終binaryへのlink
+- 対象環境での実行test
+- threadや非同期処理との同期
+- 対象memoryの属性、alignment、cache制御
 - target固有のalignmentとmemory region制約
 
 ## CI

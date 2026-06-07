@@ -7,7 +7,7 @@ static mb_context_t context;
 static uint8_t arena[64u * 1024u];
 
 /*
- * C firmwareから公開headerとRust static libraryを利用できることを確認する
+ * C applicationから公開headerとRust static libraryを利用できることを確認する
  * 最小結合テスト。基本的なcopy lifecycleとmetadata更新を検証する。
  */
 int main(void)
@@ -38,8 +38,7 @@ int main(void)
     assert(mb_free(&context, handle) == MB_OK);
 
     /*
-     * DMA受信相当の直接access経路を確認する。実deviceは使わず、map pointerへの
-     * 書込みをDMA完了後のmemory状態として扱う。
+     * map pointerを使う直接access経路と、返却後の論理長更新を確認する。
      */
     assert(mb_alloc(&context, 16u, &mapped_handle) == MB_OK);
     assert(mb_map(

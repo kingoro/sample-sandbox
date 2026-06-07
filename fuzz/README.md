@@ -107,7 +107,7 @@ opcodeごとの操作:
 
 このtargetはAPIの操作順、境界値、無効handle、map状態遷移を広く探索する。
 一方で、戻り値とbuffer内容を参照実装と比較するmodel-based test、複数threadから
-の同時操作、C callerや実機DMAとの連携は対象外である。
+の同時操作、C caller側との非同期連携は対象外である。
 
 `ASAN_OPTIONS=detect_leaks=0`は、`ptrace`配下でLeakSanitizer自体が終了時に
 失敗する環境を避けるために指定している。AddressSanitizerによる範囲外accessや
