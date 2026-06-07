@@ -19,9 +19,10 @@ C APIの利用者にはopaque handleだけを公開する。ヒープを使用�
 ## はじめに読む資料
 
 1. [環境構築・開発HowTo](docs/development-guide.md)
-2. [リポジトリ構成と各ファイルの責務](docs/project-structure.md)
-3. [memory-bufferの使い方](memory-buffer/docs/usage.md)
-4. [外部提供用C API仕様](memory-buffer/docs/api.md)
+2. [C経験者向け はじめてのMemory Buffer](memory-buffer/README_BEGINNER.md)
+3. [リポジトリ構成と各ファイルの責務](docs/project-structure.md)
+4. [memory-bufferの使い方](memory-buffer/docs/usage.md)
+5. [外部提供用C API仕様](memory-buffer/docs/api.md)
 
 ## Quick start
 
@@ -111,6 +112,7 @@ Miriとfuzzも実行する。詳細な対象、tool、レポートの読み方�
 
 - [環境構築・開発HowTo](docs/development-guide.md)
 - [リポジトリ構成](docs/project-structure.md)
+- [C経験者向け はじめてのMemory Buffer](memory-buffer/README_BEGINNER.md)
 - [memory-buffer概要](memory-buffer/README.md)
 - [構成・責務・状態遷移](memory-buffer/docs/architecture.md)
 - [Cからの利用方法・代表シーケンス](memory-buffer/docs/usage.md)

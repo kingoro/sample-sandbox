@@ -7,8 +7,12 @@
 バッファを扱う。範囲外access、解放後access、貸出中pointerとの競合をAPI境界で
 検査し、メモリ管理の詳細を呼出側から隠蔽する。
 
+初めて読む人、C経験が中心の人は、先に
+[C経験者向け はじめてのMemory Buffer](README_BEGINNER.md)を参照する。
+
 ## ドキュメント
 
+- [C経験者向け はじめてのMemory Buffer](README_BEGINNER.md)
 - [構成・責務・状態遷移](docs/architecture.md)
 - [Cからの利用方法・copy経路・直接access](docs/usage.md)
 - [外部提供用C API仕様](docs/api.md)
