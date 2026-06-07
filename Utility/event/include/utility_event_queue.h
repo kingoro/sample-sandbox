@@ -1,3 +1,7 @@
+/**
+ * @file utility_event_queue.h
+ * @brief 固定長FIFO Event Queueの公開API。
+ */
 #ifndef UTILITY_EVENT_QUEUE_H
 #define UTILITY_EVENT_QUEUE_H
 
@@ -33,6 +37,9 @@ typedef struct ut_event_queue {
  * storageの内容は初期化しない。queueとstorageは再初期化または利用終了まで
  * 有効に保つ。
  *
+ * @param queue 初期化するQueue context。
+ * @param storage Event記述子を保持する呼出側所有の配列。
+ * @param capacity storageへ格納できるEvent件数。
  * @return UT_EVENT_OKまたはUT_EVENT_INVALID_ARGUMENT。
  */
 ut_event_result_t ut_event_queue_init(
@@ -45,6 +52,8 @@ ut_event_result_t ut_event_queue_init(
  *
  * payloadが指すデータ本体はcopyしない。満杯時は既存Eventを上書きしない。
  *
+ * @param queue 初期化済みQueue context。
+ * @param event Queueへ浅くcopyするEvent記述子。
  * @return UT_EVENT_OK、UT_EVENT_FULL、UT_EVENT_INVALID_ARGUMENT。
  */
 ut_event_result_t ut_event_queue_push(
@@ -54,6 +63,8 @@ ut_event_result_t ut_event_queue_push(
 /**
  * Queue先頭のEventをout_eventへcopyしてQueueから削除する。
  *
+ * @param queue 初期化済みQueue context。
+ * @param out_event 取り出したEvent記述子の格納先。
  * @return UT_EVENT_OK、UT_EVENT_EMPTY、UT_EVENT_INVALID_ARGUMENT。
  */
 ut_event_result_t ut_event_queue_pop(
@@ -63,6 +74,8 @@ ut_event_result_t ut_event_queue_pop(
 /**
  * Queue先頭のEventを削除せずout_eventへcopyする。
  *
+ * @param queue 初期化済みQueue context。
+ * @param out_event 先頭Event記述子の格納先。
  * @return UT_EVENT_OK、UT_EVENT_EMPTY、UT_EVENT_INVALID_ARGUMENT。
  */
 ut_event_result_t ut_event_queue_peek(
@@ -72,14 +85,25 @@ ut_event_result_t ut_event_queue_peek(
 /**
  * Queueを空にする。payloadの解放処理は行わない。
  *
+ * @param queue 初期化済みQueue context。
  * @return UT_EVENT_OKまたはUT_EVENT_INVALID_ARGUMENT。
  */
 ut_event_result_t ut_event_queue_clear(ut_event_queue_t *queue);
 
-/** 有効なQueueの現在件数を返す。無効なQueueでは0を返す。 */
+/**
+ * 有効なQueueの現在件数を返す。
+ *
+ * @param queue Queue context。
+ * @return 現在件数。無効なQueueでは0。
+ */
 size_t ut_event_queue_count(const ut_event_queue_t *queue);
 
-/** 有効なQueueの最大件数を返す。無効なQueueでは0を返す。 */
+/**
+ * 有効なQueueの最大件数を返す。
+ *
+ * @param queue Queue context。
+ * @return 最大件数。無効なQueueでは0。
+ */
 size_t ut_event_queue_capacity(const ut_event_queue_t *queue);
 
 #ifdef __cplusplus

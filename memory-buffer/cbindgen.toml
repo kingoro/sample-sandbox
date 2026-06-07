@@ -1,13 +1,20 @@
 language = "C"
 cpp_compat = true
 include_guard = "MEMORY_BUFFER_GENERATED_H"
-documentation = false
+documentation = true
+documentation_style = "doxy"
 usize_is_size_t = true
 style = "tag"
 sort_by = "Name"
 
 header = """
-/* 自動生成ファイル。直接編集しないこと。 */
+/**
+ * @file memory_buffer_generated.h
+ * @brief Rust定義から生成したMemory Buffer ABI manifest。
+ *
+ * 自動生成ファイル。直接編集しないこと。
+ * 利用者向けの正式APIはmemory_buffer.hを参照する。
+ */
 """
 
 [parse]
@@ -35,4 +42,3 @@ include = [
 [export.rename]
 "MbBufferInfo" = "mb_buffer_info_generated_t"
 "MbResult" = "mb_result_generated_t"
-

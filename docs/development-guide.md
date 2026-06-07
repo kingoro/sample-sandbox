@@ -108,6 +108,7 @@ sudo apt-get install -y \
   cmake \
   cppcheck \
   curl \
+  doxygen \
   git \
   python3
 ```
@@ -162,6 +163,7 @@ cargo clippy --version
 cmake --version
 cc --version
 python3 --version
+doxygen --version
 cbindgen --version
 cargo fuzz --version
 cargo llvm-cov --version
@@ -197,6 +199,8 @@ make extended-check
 | `cargo test --workspace` | Rust単体・結合テスト | stable Rust |
 | `make test` | Rust testとCMake/CTest結合テスト | Rust、CMake、C compiler |
 | `make static-analysis` | rustfmt、Clippy、GCC `-fanalyzer` | Clippy、GCC |
+| `make c-docs-check` | 全C headerのDoxygenコメント契約検査 | Python |
+| `make c-docs` | 全C API、source、test、fuzz仕様書生成 | Doxygen |
 | `make header-check` | Rust定義と生成headerの差分検査 | cbindgen |
 | `make coverage` | 単体/結合branch coverageと閾値検査 | nightly、cargo-llvm-cov、Python |
 | `make metrics` | CC、認知的複雑度、MIのHTML生成 | Python、rust-code-analysis-cli |
@@ -205,7 +209,7 @@ make extended-check
 | `make miri` | Rust memory modelに基づく単体テスト | nightly、Miri |
 | `make fuzz-smoke` | libFuzzerを2000回実行 | nightly、cargo-fuzz、C++ compiler |
 | `make cppcheck` | C利用例の追加静的解析 | Cppcheck |
-| `make check` | 通常の品質ゲート一式 | 上記の通常検査tool |
+| `make check` | 通常の品質ゲート一式 | 上記の通常検査tool、Doxygen |
 | `make extended-check` | `check`にMiriとfuzzを追加 | 全tool |
 | `make docker-build` | 固定tool入りDocker imageをbuild | Docker、Compose v2 |
 | `make docker-shell` | 開発containerのshellを開く | Docker image |

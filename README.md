@@ -104,10 +104,13 @@ fuzzで見つけた入力は最小化し、再発防止できる通常テスト�
 
 | 指標 | 基準 |
 | --- | ---: |
-| Rust単体テスト C1 branch coverage | 80%以上 |
-| C ABI結合テスト C1 branch coverage | 50%以上 |
+| 全言語の単体テスト C1 branch coverage | 80%以上 |
+| 全言語の結合テスト C1 branch coverage | 50%以上 |
 | production関数の循環的複雑度 | 15以下 |
 | production関数のVisual Studio式MI | 35以上 |
+
+基準値の唯一の定義元は`tools/quality-policy.json`とし、言語やmoduleごとの独自閾値は
+設けない。
 
 localとCIは同じMake targetを使用する。`make check`を通常の完了条件とし、
 unsafe、pointer貸出、状態遷移へ影響する変更では`make extended-check`で
@@ -140,6 +143,9 @@ Miriとfuzzも実行する。詳細な対象、tool、レポートの読み方�
 - [品質ゲートとHTMLレポート](memory-buffer/docs/quality.md)
 - [cbindgen・Miri・fuzz・cross buildによる高度検証](memory-buffer/docs/advanced-verification.md)
 - [fuzz testの使い方と検査内容](fuzz/README.md)
+
+全C API、production source、単体テスト、fuzz harnessのDoxygen仕様書は
+`make c-docs`で`build/docs/c-api/html/index.html`へ生成する。
 
 ## ライブラリの範囲
 

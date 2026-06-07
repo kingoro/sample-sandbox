@@ -17,6 +17,7 @@
 ├── README.md                  # repository全体の入口
 ├── docs/
 │   ├── development-guide.md   # 環境構築と開発HowTo
+│   ├── c-api-main.md          # Doxygen C仕様書のトップページ
 │   └── project-structure.md   # 本文書
 ├── memory-buffer/
 │   ├── Cargo.toml             # library crate設定
@@ -42,7 +43,11 @@
 │   └── fuzz_targets/          # libFuzzer harness
 ├── tools/
 │   ├── coverage.sh            # branch coverage生成と閾値検査
+│   ├── c_coverage.sh          # C単体テストのgcovレポート生成
+│   ├── check_c_docs.py        # C headerのDoxygenコメント契約検査
+│   ├── quality-policy.json    # 全言語共通の品質閾値
 │   └── quality.py             # CC/MI集計とHTML index生成
+├── Doxyfile                   # 全C API、source、test、fuzzの仕様書生成
 └── .github/workflows/ci.yml   # push/PR時のGitHub Actions
 ```
 
@@ -108,6 +113,7 @@ heap、RTOS、I/Oへ依存せず、storageは呼出側が提供する。
 | `target/` | 通常のCargo build、test、Rustdoc |
 | `build/memory-buffer/` | CMake buildとC結合実行ファイル |
 | `build/reports/` | coverage、CC、MIのHTMLレポート |
+| `build/docs/c-api/` | Doxygenで生成する全C API・test仕様書 |
 | `fuzz/target/` | fuzz targetのbuild成果物 |
 | `fuzz/corpus/` | libFuzzerが学習した入力 |
 | `fuzz/artifacts/` | crashを再現する入力 |

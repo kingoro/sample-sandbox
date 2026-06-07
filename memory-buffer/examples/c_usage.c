@@ -1,14 +1,22 @@
+/**
+ * @file c_usage.c
+ * @brief Memory Buffer公開C APIの結合テスト兼利用例。
+ */
 #include "memory_buffer.h"
 
 #include <assert.h>
 #include <string.h>
 
+/** 結合テストで使用するMemory Buffer context。 */
 static mb_context_t context;
+/** 結合テストでpayloadを保持する固定長arena。 */
 static uint8_t arena[64u * 1024u];
 
-/*
+/**
  * C applicationから公開headerとRust static libraryを利用できることを確認する
  * 最小結合テスト。基本的なcopy lifecycleとmetadata更新を検証する。
+ *
+ * @return 全検証成功時は0。assert違反時はprocessが異常終了する。
  */
 int main(void)
 {

@@ -1,19 +1,36 @@
+/**
+ * @file fuzz_event_operations.c
+ * @brief QueueとDispatcherへ任意の操作列を適用するfuzz target。
+ */
 #include "utility_event.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+/** Fuzz対象Queueの固定capacity。 */
 #define FUZZ_QUEUE_CAPACITY 8u
+/** Fuzz対象Dispatcherの固定subscription capacity。 */
 #define FUZZ_SUBSCRIPTION_CAPACITY 4u
+/** Fuzzで使い分けるhandler context数。 */
 #define FUZZ_HANDLER_COUNT 4u
+/** Fuzzで使い分けるEvent ID数。 */
 #define FUZZ_EVENT_ID_COUNT 4u
 
+/** Fuzz handlerの観測状態。 */
 typedef struct fuzz_handler_state {
+    /** handler呼出回数。 */
     size_t calls;
+    /** 最後に受信したEvent ID。 */
     uint32_t last_event_id;
 } fuzz_handler_state_t;
 
+/**
+ * 配送されたEventをfuzz_handler_state_tへ記録する。
+ *
+ * @param event 配送されたEvent。
+ * @param user_context fuzz_handler_state_tへのpointer。
+ */
 static void fuzz_handler(const ut_event_t *event, void *user_context)
 {
     fuzz_handler_state_t *state = (fuzz_handler_state_t *)user_context;
@@ -22,6 +39,11 @@ static void fuzz_handler(const ut_event_t *event, void *user_context)
     state->last_event_id = event->id;
 }
 
+/**
+ * Fuzz不変条件を検査し、違反時にprocessを異常終了させる。
+ *
+ * @param condition 検査する条件。
+ */
 static void require_condition(int condition)
 {
     if (!condition) {
@@ -29,6 +51,13 @@ static void require_condition(int condition)
     }
 }
 
+/**
+ * 1件の4 byte命令をQueue操作として実行し、参照modelと照合する。
+ *
+ * @param queue 操作対象Queue。
+ * @param model_count 参照model上のQueue件数。
+ * @param command 4 byte以上の命令列。
+ */
 static void fuzz_queue_operation(
     ut_event_queue_t *queue,
     size_t *model_count,
@@ -77,6 +106,15 @@ static void fuzz_queue_operation(
     require_condition(*model_count <= FUZZ_QUEUE_CAPACITY);
 }
 
+/**
+ * 1件の4 byte命令をDispatcher操作として実行し、参照modelと照合する。
+ *
+ * @param dispatcher 操作対象Dispatcher。
+ * @param handler_states handlerごとの観測状態。
+ * @param registered Event IDとhandlerの登録状態model。
+ * @param model_count 参照model上のsubscription件数。
+ * @param command 4 byte以上の命令列。
+ */
 static void fuzz_dispatcher_operation(
     ut_event_dispatcher_t *dispatcher,
     fuzz_handler_state_t *handler_states,
@@ -135,6 +173,13 @@ static void fuzz_dispatcher_operation(
     require_condition(*model_count <= FUZZ_SUBSCRIPTION_CAPACITY);
 }
 
+/**
+ * libFuzzer互換のEvent Utility fuzz入口。
+ *
+ * @param data 任意入力byte列。
+ * @param size dataのbyte数。
+ * @return 常に0。不変条件違反時はabortする。
+ */
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     ut_event_t queue_storage[FUZZ_QUEUE_CAPACITY];

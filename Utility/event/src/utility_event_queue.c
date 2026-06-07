@@ -1,5 +1,15 @@
+/**
+ * @file utility_event_queue.c
+ * @brief 固定長FIFO Event Queueの実装。
+ */
 #include "utility_event_queue.h"
 
+/**
+ * Queue contextの内部不変条件を検査する。
+ *
+ * @param queue 検査するQueue context。
+ * @return 利用可能なら真、それ以外は偽。
+ */
 static int queue_is_valid(const ut_event_queue_t *queue)
 {
     /*

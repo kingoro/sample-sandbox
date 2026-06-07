@@ -16,6 +16,7 @@ RUN apt-get update \
         ca-certificates \
         cmake \
         cppcheck \
+        doxygen \
         git \
         python3 \
     && rm -rf /var/lib/apt/lists/*

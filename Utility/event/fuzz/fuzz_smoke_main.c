@@ -1,8 +1,20 @@
+/**
+ * @file fuzz_smoke_main.c
+ * @brief libFuzzerなしでfuzz targetを短時間実行するdriver。
+ */
 #include <stddef.h>
 #include <stdint.h>
 
+/** @cond INTERNAL */
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+/** @endcond */
 
+/**
+ * xorshift32で次の疑似乱数を生成する。
+ *
+ * @param state 更新対象の乱数状態。
+ * @return 次の32 bit疑似乱数。
+ */
 static uint32_t next_random(uint32_t *state)
 {
     uint32_t value = *state;
@@ -14,6 +26,11 @@ static uint32_t next_random(uint32_t *state)
     return value;
 }
 
+/**
+ * 2,000件の疑似ランダム入力でfuzz targetを実行する。
+ *
+ * @return 全入力成功時は0。
+ */
 int main(void)
 {
     uint8_t input[256];

@@ -1,10 +1,11 @@
-.PHONY: help check extended-check test utility-test docs header header-check static-analysis utility-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
+.PHONY: help check extended-check test utility-test docs rust-docs c-docs c-docs-check header header-check static-analysis utility-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
 
 BUILD_DIR ?= build/memory-buffer
 UTILITY_BUILD_DIR ?= build/utility-event
 REPORT_DIR ?= build/reports
 PORTABLE_TARGET ?= thumbv7em-none-eabi
 NIGHTLY_TOOLCHAIN ?= nightly-2026-06-06
+DOXYGEN ?= doxygen
 
 help:
 	@printf '%s\n' \
@@ -13,7 +14,9 @@ help:
 		'  utility-test     Event UtilityのC単体テスト' \
 		'  static-analysis  Rust、C利用例、Event Utilityの静的解析' \
 		'  utility-static-analysis Event UtilityのGCC静的解析' \
-		'  docs             Rustdoc生成' \
+		'  docs             Rustdocと全C API/test仕様書を生成' \
+		'  c-docs           Doxygenで全C API/test仕様書を生成' \
+		'  c-docs-check     全headerのDocstring契約を検査' \
 		'  header           cbindgen header再生成' \
 		'  header-check     生成headerのdrift検査' \
 		'  coverage         単体・結合branch coverage検査' \
@@ -133,7 +136,7 @@ metrics:
 
 quality: coverage metrics
 
-quality-report: quality
+quality-report: quality c-docs
 	python3 tools/quality.py index \
 		--output $(REPORT_DIR)/index.html \
 		--unit $(REPORT_DIR)/coverage/unit/summary.json \
@@ -152,8 +155,20 @@ utility-test:
 	cmake --build $(UTILITY_BUILD_DIR)
 	ctest --test-dir $(UTILITY_BUILD_DIR) --output-on-failure
 
-docs:
+docs: rust-docs c-docs
+
+rust-docs:
 	cargo doc --workspace --no-deps
+
+c-docs: c-docs-check
+	mkdir -p build/docs/c-api
+	$(DOXYGEN) Doxyfile
+
+c-docs-check:
+	python3 tools/check_c_docs.py \
+		memory-buffer/include/*.h \
+		Utility/event/include/*.h \
+		Utility/event/tests/*.h
 
 docker-ready:
 	@docker version >/dev/null 2>&1 || { \

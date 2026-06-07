@@ -42,14 +42,14 @@ ASAN_OPTIONS=detect_leaks=0 \
 
 ```sh
 cargo +nightly-2026-06-06 fuzz run operation_sequence \
-  --fuzz-dir fuzz fuzz/artifacts/operation_sequence/<artifact>
+  --fuzz-dir fuzz fuzz/artifacts/operation_sequence/{artifact}
 ```
 
 crash入力を最小化する場合:
 
 ```sh
 cargo +nightly-2026-06-06 fuzz tmin operation_sequence \
-  --fuzz-dir fuzz fuzz/artifacts/operation_sequence/<artifact>
+  --fuzz-dir fuzz fuzz/artifacts/operation_sequence/{artifact}
 ```
 
 ## 現在検査している内容

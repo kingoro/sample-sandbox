@@ -11,12 +11,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-UNIT_BRANCH_MIN = 80.0
-INTEGRATION_BRANCH_MIN = 50.0
-C_LINE_MIN = 80.0
-C_BRANCH_MIN = 70.0
-CC_MAX = 15.0
-MI_MIN = 35.0
+QUALITY_POLICY = json.loads(
+    (Path(__file__).with_name("quality-policy.json")).read_text(encoding="utf-8")
+)
+UNIT_BRANCH_MIN = float(QUALITY_POLICY["unit_branch_min"])
+INTEGRATION_BRANCH_MIN = float(QUALITY_POLICY["integration_branch_min"])
+CC_MAX = float(QUALITY_POLICY["cc_max"])
+MI_MIN = float(QUALITY_POLICY["mi_min"])
 
 
 def load_json(path: Path) -> dict:
@@ -61,22 +62,31 @@ def c_source_rows(paths: list[Path]) -> tuple[list[dict], dict]:
             line_covered = 0
             branch_total = 0
             branch_covered = 0
+            line_details = {}
             for line in source.get("lines", []):
                 line_total += 1
                 line_covered += int(line.get("count", 0) > 0)
                 branches = line.get("branches", [])
                 branch_total += len(branches)
-                branch_covered += sum(
+                covered_branches = sum(
                     int(branch.get("count", 0) > 0) for branch in branches
                 )
+                branch_covered += covered_branches
+                line_details[int(line["line_number"])] = {
+                    "count": int(line.get("count", 0)),
+                    "branches_covered": covered_branches,
+                    "branches_total": len(branches),
+                }
             row = {
                 "file": source["file"],
+                "detail_file": f"{Path(source['file']).name}.html",
                 "lines_covered": line_covered,
                 "lines_total": line_total,
                 "line_percent": percent(line_covered, line_total),
                 "branches_covered": branch_covered,
                 "branches_total": branch_total,
                 "branch_percent": percent(branch_covered, branch_total),
+                "line_details": line_details,
             }
             rows.append(row)
             for key in totals:
@@ -90,25 +100,86 @@ def c_source_rows(paths: list[Path]) -> tuple[list[dict], dict]:
     return rows, totals
 
 
+def generate_c_source_html(output: Path, row: dict) -> None:
+    source_path = Path(row["file"])
+    source_lines = source_path.read_text(encoding="utf-8").splitlines()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    table_rows = []
+    for number, source_line in enumerate(source_lines, 1):
+        detail = row["line_details"].get(number)
+        if detail is None:
+            css_class = "neutral"
+            count = "-"
+            branches = "-"
+        else:
+            css_class = "covered" if detail["count"] > 0 else "uncovered"
+            count = str(detail["count"])
+            branches = (
+                f"{detail['branches_covered']}/{detail['branches_total']}"
+                if detail["branches_total"] > 0
+                else "-"
+            )
+        table_rows.append(
+            "<tr class='{css}'><td class='number'>{number}</td>"
+            "<td class='count'>{count}</td><td class='branches'>{branches}</td>"
+            "<td><pre>{source}</pre></td></tr>".format(
+                css=css_class,
+                number=number,
+                count=count,
+                branches=branches,
+                source=html.escape(source_line),
+            )
+        )
+
+    output.write_text(
+        f"""<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>{html.escape(row["file"])} Coverage</title>
+<style>
+body{{font-family:sans-serif;margin:2rem;color:#222}}table{{border-collapse:collapse;width:100%}}
+th,td{{border:1px solid #ccc;padding:.2rem .45rem;text-align:left;vertical-align:top}}
+th{{background:#eee}}pre{{font-family:monospace;margin:0;white-space:pre-wrap}}
+.number,.count,.branches{{width:5rem;text-align:right}}.covered{{background:#e4f6e8}}
+.uncovered{{background:#ffdede}}.neutral{{background:#f5f5f5;color:#666}}
+</style></head><body>
+<h1>{html.escape(row["file"])}</h1>
+<p><a href="index.html">C Coverage一覧へ戻る</a></p>
+<p>Line: {row["line_percent"]:.2f}% ({row["lines_covered"]}/{row["lines_total"]}) /
+Branch: {row["branch_percent"]:.2f}% ({row["branches_covered"]}/{row["branches_total"]})</p>
+<table><thead><tr><th>Line</th><th>実行回数</th><th>分岐</th><th>Source</th></tr></thead>
+<tbody>{"".join(table_rows)}</tbody></table>
+</body></html>
+""",
+        encoding="utf-8",
+    )
+
+
 def generate_c_coverage(
     output: Path, html_output: Path, test_status: str, inputs: list[Path]
 ) -> int:
     rows, totals = c_source_rows(inputs)
+    summary_rows = [
+        {key: value for key, value in row.items() if key != "line_details"}
+        for row in rows
+    ]
     summary = {
         "test_status": test_status,
         "tests_total": 1,
         "tests_passed": int(test_status == "passed"),
         **totals,
-        "files": rows,
+        "files": summary_rows,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
     table_rows = []
     for row in rows:
+        generate_c_source_html(html_output.parent / row["detail_file"], row)
         table_rows.append(
-            "<tr><td>{file}</td><td>{lc}/{lt}</td><td>{lp:.2f}%</td>"
+            "<tr><td><a href='{detail}'>{file}</a></td>"
+            "<td>{lc}/{lt}</td><td>{lp:.2f}%</td>"
             "<td>{bc}/{bt}</td><td>{bp:.2f}%</td></tr>".format(
+                detail=html.escape(row["detail_file"]),
                 file=html.escape(row["file"]),
                 lc=row["lines_covered"],
                 lt=row["lines_total"],
@@ -118,10 +189,8 @@ def generate_c_coverage(
                 bp=row["branch_percent"],
             )
         )
-    line_ok = totals["line_percent"] >= C_LINE_MIN
-    branch_ok = totals["branch_percent"] >= C_BRANCH_MIN
+    branch_ok = totals["branch_percent"] >= UNIT_BRANCH_MIN
     test_ok = test_status == "passed"
-    html_output.parent.mkdir(parents=True, exist_ok=True)
     html_output.write_text(
         f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><title>Event Utility C Coverage</title>
@@ -132,10 +201,9 @@ th,td{{border:1px solid #bbb;padding:.45rem;text-align:left}}th{{background:#eee
 </style></head><body>
 <h1>Event Utility Cテスト・Coverage</h1>
 <p>テスト: <span class="{"ok" if test_ok else "ng"}">{html.escape(test_status.upper())}</span></p>
-<p>Line coverage: <span class="{"ok" if line_ok else "ng"}">{totals["line_percent"]:.2f}%</span>
-（基準 {C_LINE_MIN:.0f}%以上）</p>
+<p>Line coverage: {totals["line_percent"]:.2f}%（参考値）</p>
 <p>Branch coverage: <span class="{"ok" if branch_ok else "ng"}">{totals["branch_percent"]:.2f}%</span>
-（基準 {C_BRANCH_MIN:.0f}%以上）</p>
+（単体テスト共通基準 {UNIT_BRANCH_MIN:.0f}%以上）</p>
 <table><thead><tr><th>Source</th><th>Lines</th><th>Line %</th>
 <th>Branches</th><th>Branch %</th></tr></thead><tbody>
 {"".join(table_rows)}
@@ -144,15 +212,15 @@ th,td{{border:1px solid #bbb;padding:.45rem;text-align:left}}th{{background:#eee
         encoding="utf-8",
     )
     print(
-        f"Event Utility C line: {totals['line_percent']:.2f}% / "
-        f"基準 {C_LINE_MIN:.2f}% [{'OK' if line_ok else 'NG'}]"
+        f"Event Utility C line: {totals['line_percent']:.2f}% [参考値]"
     )
     print(
         f"Event Utility C branch: {totals['branch_percent']:.2f}% / "
-        f"基準 {C_BRANCH_MIN:.2f}% [{'OK' if branch_ok else 'NG'}]"
+        f"単体共通基準 {UNIT_BRANCH_MIN:.2f}% "
+        f"[{'OK' if branch_ok else 'NG'}]"
     )
     print(f"Event Utility C test: {test_status.upper()}")
-    return int(not (line_ok and branch_ok and test_ok))
+    return int(not (branch_ok and test_ok))
 
 
 def analysis_json(path: Path) -> dict:
@@ -278,11 +346,14 @@ body{{font-family:sans-serif;margin:2rem;color:#222}}.cards{{display:flex;gap:1r
 <section class="card"><h2>結合テスト C1</h2><div class="value">{integration_value:.2f}%</div>
 <p>基準: {INTEGRATION_BRANCH_MIN:.0f}%以上</p><a href="coverage/integration/html/index.html">詳細を見る</a></section>
 <section class="card"><h2>Event Utility Cテスト</h2><div class="value">{c_test_status}</div>
-<p>Line: {c_line_value:.2f}%（基準 {C_LINE_MIN:.0f}%）<br>
-Branch: {c_branch_value:.2f}%（基準 {C_BRANCH_MIN:.0f}%）</p>
+<p>Line: {c_line_value:.2f}%（参考値）<br>
+Branch: {c_branch_value:.2f}%（単体共通基準 {UNIT_BRANCH_MIN:.0f}%）</p>
 <a href="coverage/event-c/html/index.html">Cテスト・Coverageを見る</a></section>
 <section class="card"><h2>静的メトリクス</h2><p>CC上限: {CC_MAX:.0f}<br>MI下限: {MI_MIN:.0f}</p>
 <a href="metrics/index.html">CC・MI一覧を見る</a></section>
+<section class="card"><h2>C API・Test仕様書</h2>
+<p>Header、production、単体テスト、fuzzから自動生成</p>
+<a href="../docs/c-api/html/index.html">Doxygen仕様書を見る</a></section>
 </div></body></html>
 """,
         encoding="utf-8",

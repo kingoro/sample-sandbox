@@ -21,12 +21,19 @@ const CONTEXT_ALIGNMENT: usize = MB_CONTEXT_ALIGNMENT;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// すべてのC ABI操作が返す結果code。
 pub enum MbResult {
+    /// 操作が成功した。
     Ok = 0,
+    /// NULL、size、alignmentなどの引数契約に違反した。
     InvalidArgument = 1,
+    /// contextが初期化されていない。
     NotInitialized = 2,
+    /// arenaまたはbuffer slotに空きがない。
     OutOfMemory = 4,
+    /// handleが無効、解放済み、または世代不一致である。
     InvalidHandle = 5,
+    /// read、write、lengthがbuffer境界を超える。
     OutOfBounds = 6,
+    /// map中など、現在の状態では操作できない。
     Busy = 7,
 }
 
@@ -34,9 +41,13 @@ pub enum MbResult {
 #[derive(Clone, Copy)]
 /// 割り当て済みバッファの公開状態。
 pub struct MbBufferInfo {
+    /// 初期化済みデータの論理長。
     pub length: usize,
+    /// bufferへ割り当てられた最大byte数。
     pub capacity: usize,
+    /// map中なら1、それ以外は0。
     pub mapped: u8,
+    /// ABI拡張用。常に0として返す。
     pub reserved: [u8; 7],
 }
 
@@ -185,6 +196,12 @@ fn ranges_overlap(
 /// すべてのpointerは、指定したsizeだけ有効なmemoryを参照しなければならない。
 /// control storageとarenaは重複してはならない。
 /// contextとarenaへのaccessは呼出側で直列化しなければならない。
+///
+/// @param storage C側が確保した制御storage。
+/// @param storage_size storageのbyte数。
+/// @param arena payloadを保持する呼出側所有memory。
+/// @param arena_len arenaのbyte数。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_init(
     storage: *mut c_void,
     storage_size: usize,
@@ -226,6 +243,9 @@ pub unsafe extern "C" fn mb_init(
 ///
 /// `storage`には[`mb_init`]で初期化したcontextが必要であり、accessは呼出側で
 /// 直列化しなければならない。
+///
+/// @param storage 初期化済み制御storage。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_reset(storage: *mut c_void) -> MbResult {
     let ctx = match context(storage) {
         Ok(ctx) => ctx,
@@ -250,6 +270,11 @@ pub unsafe extern "C" fn mb_reset(storage: *mut c_void) -> MbResult {
 ///
 /// `storage`は初期化済み、`out_handle`は書込み可能でなければならない。
 /// accessは呼出側で直列化しなければならない。
+///
+/// @param storage 初期化済み制御storage。
+/// @param capacity 確保するbyte数。
+/// @param out_handle 成功時にhandleを格納する出力先。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_alloc(
     storage: *mut c_void,
     capacity: usize,
@@ -287,6 +312,10 @@ pub unsafe extern "C" fn mb_alloc(
 /// # Safety
 ///
 /// `storage`には初期化済みcontextが必要で、accessは呼出側で直列化する。
+///
+/// @param storage 初期化済み制御storage。
+/// @param handle 解放対象handle。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_free(storage: *mut c_void, handle: u32) -> MbResult {
     let ctx = match context(storage) {
         Ok(ctx) => ctx,
@@ -313,6 +342,13 @@ pub unsafe extern "C" fn mb_free(storage: *mut c_void, handle: u32) -> MbResult 
 ///
 /// `source`は`length` byte読取り可能でなければならない。`storage`には
 /// 初期化済みcontextが必要で、accessは呼出側で直列化する。
+///
+/// @param storage 初期化済み制御storage。
+/// @param handle 書込み対象handle。
+/// @param offset buffer先頭からのoffset。
+/// @param source copy元byte列。
+/// @param length copyするbyte数。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_write(
     storage: *mut c_void,
     handle: u32,
@@ -354,6 +390,13 @@ pub unsafe extern "C" fn mb_write(
 ///
 /// `destination`は`length` byte書込み可能でなければならない。`storage`には
 /// 初期化済みcontextが必要で、accessは呼出側で直列化する。
+///
+/// @param storage 初期化済み制御storage。
+/// @param handle 読取り対象handle。
+/// @param offset buffer先頭からのoffset。
+/// @param destination copy先byte列。
+/// @param length copyするbyte数。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_read(
     storage: *mut c_void,
     handle: u32,
@@ -395,6 +438,11 @@ pub unsafe extern "C" fn mb_read(
 /// `storage`には初期化済みcontextが必要で、accessは呼出側で直列化する。
 /// 論理長を伸ばす場合、新たに有効化する範囲はmap pointerなどで
 /// 初期化済みでなければならない。
+///
+/// @param storage 初期化済み制御storage。
+/// @param handle 対象handle。
+/// @param length 設定する論理長。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_set_length(
     storage: *mut c_void,
     handle: u32,
@@ -425,6 +473,11 @@ pub unsafe extern "C" fn mb_set_length(
 ///
 /// `out_info`は書込み可能でなければならない。`storage`には初期化済みcontextが
 /// 必要で、accessは呼出側で直列化する。
+///
+/// @param storage 初期化済み制御storage。
+/// @param handle 対象handle。
+/// @param out_info metadataの格納先。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_get_info(
     storage: *mut c_void,
     handle: u32,
@@ -459,6 +512,12 @@ pub unsafe extern "C" fn mb_get_info(
 ///
 /// 出力pointerは書込み可能でなければならない。呼出側は返却されたpointerの
 /// 貸出期間を守り、context accessを直列化しなければならない。
+///
+/// @param storage 初期化済み制御storage。
+/// @param handle map対象handle。
+/// @param out_data arena内pointerの格納先。
+/// @param out_capacity capacityの格納先。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_map(
     storage: *mut c_void,
     handle: u32,
@@ -496,6 +555,10 @@ pub unsafe extern "C" fn mb_map(
 ///
 /// `storage`には初期化済みcontextが必要で、accessは呼出側で直列化する。
 /// 最後のunmapより前に、mapしたpointerの利用者をすべて停止しなければならない。
+///
+/// @param storage 初期化済み制御storage。
+/// @param handle unmap対象handle。
+/// @return 操作結果。
 pub unsafe extern "C" fn mb_unmap(storage: *mut c_void, handle: u32) -> MbResult {
     let ctx = match context(storage) {
         Ok(ctx) => ctx,

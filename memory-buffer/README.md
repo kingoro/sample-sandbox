@@ -101,7 +101,7 @@ mb_set_length(&context, handle, bytes_written);
 make check
 ```
 
-`make check`はformat、Clippy、GCC静的解析、Rust/C結合test、Rustdoc生成、
+`make check`はformat、Clippy、GCC静的解析、Rust/C結合test、Rustdoc/Doxygen生成、
 C1 coverage、CC、MI、header drift、32 bit `no_std` cross buildの品質ゲートを
 実行する。
 
@@ -128,7 +128,9 @@ CMake結合buildではdefault featureを無効にし、`no_std` static library�
 
 ## ドキュメント生成
 
-公開Rust APIにはRustdoc、C headerにはDoxygen互換コメントを記述する。
+公開Rust APIにはRustdoc、全C header・source・test・fuzzにはDoxygenコメントを
+記述する。`make c-docs-check`でheader契約を検査し、`make c-docs`では未文書化要素や
+引数説明不足をerrorとして仕様書を生成する。
 Rust API referenceは次のコマンドで生成する。
 
 ```sh

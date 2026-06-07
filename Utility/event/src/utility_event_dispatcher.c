@@ -1,7 +1,17 @@
+/**
+ * @file utility_event_dispatcher.c
+ * @brief Event Dispatcherの実装。
+ */
 #include "utility_event_dispatcher.h"
 
 #include <string.h>
 
+/**
+ * Dispatcher contextの内部不変条件を検査する。
+ *
+ * @param dispatcher 検査するDispatcher context。
+ * @return 利用可能なら真、それ以外は偽。
+ */
 static int dispatcher_is_valid(const ut_event_dispatcher_t *dispatcher)
 {
     /* subscription配列を走査する前に最低限のcontext不変条件を確認する。 */

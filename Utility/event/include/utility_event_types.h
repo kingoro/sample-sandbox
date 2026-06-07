@@ -1,3 +1,7 @@
+/**
+ * @file utility_event_types.h
+ * @brief Event記述子と共通Event IDを定義する。
+ */
 #ifndef UTILITY_EVENT_TYPES_H
 #define UTILITY_EVENT_TYPES_H
 

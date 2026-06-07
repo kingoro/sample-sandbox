@@ -30,7 +30,7 @@ jobs:
           cargo install cargo-llvm-cov --version 0.8.7 --locked
           cargo install rust-code-analysis-cli --version 0.0.25 --locked
           sudo apt-get update
-          sudo apt-get install -y cppcheck
+          sudo apt-get install -y cppcheck doxygen
 
       - name: Run all quality gates
         run: make extended-check cppcheck
