@@ -30,10 +30,17 @@
 │   ├── examples/              # C callerの実行例
 │   └── docs/                  # 設計、API、品質、利用手順
 ├── Utility/
-│   └── event/
+│   ├── event/
 │       ├── README_BEGINNER.md # Event駆動に不慣れなC開発者向け導入
 │       ├── include/           # 集約headerと責務別の公開header
 │       ├── src/               # QueueとDispatcherのC11実装
+│       ├── tests/             # C単体テスト
+│       ├── fuzz/              # C操作列fuzz harness
+│       └── docs/              # 設計、API、品質、利用手順
+│   └── log/
+│       ├── README_BEGINNER.md # Application Logに不慣れな開発者向け導入
+│       ├── include/           # 集約headerと責務別の公開header
+│       ├── src/               # LoggerとConsole adapterのC11実装
 │       ├── tests/             # C単体テスト
 │       ├── fuzz/              # C操作列fuzz harness
 │       └── docs/              # 設計、API、品質、利用手順
@@ -91,6 +98,16 @@ heap、RTOS、I/Oへ依存せず、storageは呼出側が提供する。
 `make utility-test`でC単体テスト、`make utility-static-analysis`でGCC警告と
 `-fanalyzer`を実行する。通常の`make test`と`make check`にも含まれる。
 
+## Log Utility
+
+`Utility/log`は、Application LogをConsoleと固定長RAM Ringへ配送するC11基盤で
+ある。実行時level切替、Recordの所有、上書き件数、read/dump、任意の排他callbackを
+提供する。EEPROM製品Log、USB/UART、通信、永続化は責務に含めない。
+
+`make utility-log-test`で単体テスト、`make utility-log-static-analysis`で
+GCC警告と`-fanalyzer`を実行する。全C Utilityは`make utility-test`と
+`make utility-static-analysis`でまとめて検証できる。
+
 ## テストの配置
 
 | 場所 | 種類 | 目的 |
@@ -98,6 +115,8 @@ heap、RTOS、I/Oへ依存せず、storageは呼出側が提供する。
 | `memory-buffer/src/buffer.rs` | Rust単体テスト | private helper、境界値、状態遷移 |
 | `memory-buffer/tests/c_abi.rs` | Rust結合テスト | 公開C ABI相当の契約 |
 | `memory-buffer/examples/c_usage.c` | CTest | C compiler、header、staticlibの実linkと実行 |
+| `Utility/event/tests/` | C単体テスト | Event QueueとDispatcherの契約 |
+| `Utility/log/tests/` | C単体テスト | Logger、RAM Ring、Consoleの契約 |
 | `fuzz/fuzz_targets/` | cargo-fuzz | 任意のAPI操作列とsanitizer検査 |
 
 テスト戦略と品質基準は
@@ -112,6 +131,8 @@ heap、RTOS、I/Oへ依存せず、storageは呼出側が提供する。
 | --- | --- |
 | `target/` | 通常のCargo build、test、Rustdoc |
 | `build/memory-buffer/` | CMake buildとC結合実行ファイル |
+| `build/utility-event/` | Event Utility CMake build |
+| `build/utility-log/` | Log Utility CMake build |
 | `build/reports/` | coverage、CC、MIのHTMLレポート |
 | `build/docs/c-api/` | Doxygenで生成する全C API・test仕様書 |
 | `fuzz/target/` | fuzz targetのbuild成果物 |

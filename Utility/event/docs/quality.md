@@ -42,9 +42,9 @@ make c-docs
 `make coverage`または`make quality-report`では、GCC/gcovを使ってC単体テストを
 coverage instrumentation付きで再実行する。結果は次へ出力する。
 
-- `build/reports/coverage/event-c/summary.json`
-- `build/reports/coverage/event-c/html/index.html`
-- `build/reports/index.html`のEvent Utilityカード
+- `build/reports/coverage/utility-c/summary.json`
+- `build/reports/coverage/utility-c/html/index.html`
+- `build/reports/index.html`のC Utilityカード
 
 品質基準はrepository共通の`tools/quality-policy.json`を使用する。Event Utilityの
 C単体テストにも、他言語の単体テストと同じC1 branch coverage 80%以上を適用する。
@@ -80,3 +80,6 @@ make utility-fuzz
 ```
 
 検出した入力は最小化し、原因修正後に通常の単体テストへ移植する。
+
+C branch coverageはC Utility全体の合算ではなく、`Utility/event`単位で
+repository共通の単体テスト基準を満たさなければならない。

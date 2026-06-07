@@ -9,6 +9,7 @@
 - 基準値を変更する場合は、特定moduleだけでなくrepository全体への影響を確認する。
 - 利用者の明示的な合意なしに品質基準を変更しない。
 - 新しい言語やmoduleを追加した場合、既存の総合品質レポートへ統合する。
+- Coverageはrepository全体の合算だけで合否判定せず、各moduleへ共通閾値を適用する。
 
 ## C Documentation
 
@@ -23,5 +24,16 @@
 
 - 外部公開入口は`Utility/event/include/utility_event.h`とする。
 - 実装、header、単体テストは責務単位で分割する。
-- Event Utility変更後は`make utility-test`と`make utility-static-analysis`を実行する。
+- Event Utility変更後は`make utility-event-test`と
+  `make utility-static-analysis`を実行する。
+- 完了前に`make check`を実行する。
+
+## Log Utility
+
+- 外部公開入口は`Utility/log/include/utility_log.h`とする。
+- EEPROM製品Log、通信、USB/UART出力をApplication Log基盤へ混在させない。
+- Log RecordはRAM Ring内でmessageとmetadataを所有し、呼出元pointerへ依存させない。
+- 実装、header、単体テストは責務単位で分割する。
+- Log Utility変更後は`make utility-log-test`と
+  `make utility-log-static-analysis`を実行する。
 - 完了前に`make check`を実行する。

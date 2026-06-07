@@ -197,7 +197,9 @@ make extended-check
 | Command | 内容 | 主な依存 |
 | --- | --- | --- |
 | `cargo test --workspace` | Rust単体・結合テスト | stable Rust |
-| `make test` | Rust testとCMake/CTest結合テスト | Rust、CMake、C compiler |
+| `make test` | Rust test、C結合、全C Utility単体テスト | Rust、CMake、C compiler |
+| `make utility-test` | Event/Log Utilityの全C単体テスト | CMake、C compiler |
+| `make utility-log-test` | Log UtilityのC単体テスト | CMake、C compiler |
 | `make static-analysis` | rustfmt、Clippy、GCC `-fanalyzer` | Clippy、GCC |
 | `make c-docs-check` | 全C headerのDoxygenコメント契約検査 | Python |
 | `make c-docs` | 全C API、source、test、fuzz仕様書生成 | Doxygen |

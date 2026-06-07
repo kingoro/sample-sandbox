@@ -10,6 +10,9 @@ harnessからDoxygenで自動生成する。
 - Event Utility公開APIとproduction実装
 - Event Utility C単体テスト
 - Event Utility fuzz harness
+- Log Utility公開APIとproduction実装
+- Log Utility C単体テスト
+- Log Utility fuzz harness
 
 header内のmacro、型、enum値、field、関数宣言はDoxygenコメントを必須とする。
 関数契約には、引数、戻り値、所有権、寿命、thread safetyを必要に応じて記載する。

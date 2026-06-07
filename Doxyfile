@@ -1,5 +1,5 @@
 PROJECT_NAME           = "Common Utility"
-PROJECT_BRIEF          = "Memory Buffer and C Event Utility specifications"
+PROJECT_BRIEF          = "Memory Buffer, Event and Log Utility specifications"
 OUTPUT_DIRECTORY       = build/docs/c-api
 INPUT                  = docs/c-api-main.md \
                          memory-buffer/include \
@@ -7,7 +7,11 @@ INPUT                  = docs/c-api-main.md \
                          Utility/event/include \
                          Utility/event/src \
                          Utility/event/tests \
-                         Utility/event/fuzz
+                         Utility/event/fuzz \
+                         Utility/log/include \
+                         Utility/log/src \
+                         Utility/log/tests \
+                         Utility/log/fuzz
 FILE_PATTERNS          = *.h *.c *.md
 RECURSIVE              = YES
 USE_MDFILE_AS_MAINPAGE = docs/c-api-main.md

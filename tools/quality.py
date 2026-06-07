@@ -46,6 +46,44 @@ def percent(covered: int, total: int) -> float:
     return 100.0 if total == 0 else (covered * 100.0) / total
 
 
+def c_module_name(file_name: str) -> str:
+    parts = Path(file_name).parts
+    if len(parts) >= 2 and parts[0] == "Utility":
+        return parts[1]
+    return parts[0] if parts else "unknown"
+
+
+def c_module_rows(rows: list[dict]) -> list[dict]:
+    modules: dict[str, dict] = {}
+    for row in rows:
+        name = c_module_name(row["file"])
+        module = modules.setdefault(
+            name,
+            {
+                "module": name,
+                "lines_covered": 0,
+                "lines_total": 0,
+                "branches_covered": 0,
+                "branches_total": 0,
+            },
+        )
+        for key in (
+            "lines_covered",
+            "lines_total",
+            "branches_covered",
+            "branches_total",
+        ):
+            module[key] += row[key]
+    for module in modules.values():
+        module["line_percent"] = percent(
+            module["lines_covered"], module["lines_total"]
+        )
+        module["branch_percent"] = percent(
+            module["branches_covered"], module["branches_total"]
+        )
+    return sorted(modules.values(), key=lambda module: module["module"])
+
+
 def c_source_rows(paths: list[Path]) -> tuple[list[dict], dict]:
     rows: list[dict] = []
     totals = {
@@ -158,6 +196,7 @@ def generate_c_coverage(
     output: Path, html_output: Path, test_status: str, inputs: list[Path]
 ) -> int:
     rows, totals = c_source_rows(inputs)
+    modules = c_module_rows(rows)
     summary_rows = [
         {key: value for key, value in row.items() if key != "line_details"}
         for row in rows
@@ -167,6 +206,7 @@ def generate_c_coverage(
         "tests_total": 1,
         "tests_passed": int(test_status == "passed"),
         **totals,
+        "modules": modules,
         "files": summary_rows,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -189,21 +229,47 @@ def generate_c_coverage(
                 bp=row["branch_percent"],
             )
         )
-    branch_ok = totals["branch_percent"] >= UNIT_BRANCH_MIN
+    module_table_rows = []
+    for module in modules:
+        module_ok = module["branch_percent"] >= UNIT_BRANCH_MIN
+        module_table_rows.append(
+            "<tr><td>{module}</td><td>{lc}/{lt}</td><td>{lp:.2f}%</td>"
+            "<td>{bc}/{bt}</td><td class='{css}'>{bp:.2f}%</td>"
+            "<td class='{css}'>{status}</td></tr>".format(
+                module=html.escape(module["module"]),
+                lc=module["lines_covered"],
+                lt=module["lines_total"],
+                lp=module["line_percent"],
+                bc=module["branches_covered"],
+                bt=module["branches_total"],
+                bp=module["branch_percent"],
+                css="ok" if module_ok else "ng",
+                status="OK" if module_ok else "NG",
+            )
+        )
+    branch_ok = all(
+        module["branch_percent"] >= UNIT_BRANCH_MIN for module in modules
+    )
     test_ok = test_status == "passed"
     html_output.write_text(
         f"""<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>Event Utility C Coverage</title>
+<html lang="ja"><head><meta charset="utf-8"><title>C Utility Coverage</title>
 <style>
 body{{font-family:sans-serif;margin:2rem;color:#222}}table{{border-collapse:collapse;width:100%}}
 th,td{{border:1px solid #bbb;padding:.45rem;text-align:left}}th{{background:#eee}}
 .ok{{color:#176b2c;font-weight:bold}}.ng{{color:#a40000;font-weight:bold}}
 </style></head><body>
-<h1>Event Utility Cテスト・Coverage</h1>
+<h1>C Utility単体テスト・Coverage</h1>
 <p>テスト: <span class="{"ok" if test_ok else "ng"}">{html.escape(test_status.upper())}</span></p>
-<p>Line coverage: {totals["line_percent"]:.2f}%（参考値）</p>
-<p>Branch coverage: <span class="{"ok" if branch_ok else "ng"}">{totals["branch_percent"]:.2f}%</span>
-（単体テスト共通基準 {UNIT_BRANCH_MIN:.0f}%以上）</p>
+<p>全体Line coverage: {totals["line_percent"]:.2f}%（参考値）</p>
+<p>全体Branch coverage: {totals["branch_percent"]:.2f}%（参考値）</p>
+<p>合否はUtility module単位で判定する。各moduleのBranch coverageが
+{UNIT_BRANCH_MIN:.0f}%以上であること。</p>
+<table><thead><tr><th>Module</th><th>Lines</th><th>Line %</th>
+<th>Branches</th><th>Branch %</th><th>判定</th></tr></thead><tbody>
+{"".join(module_table_rows)}
+</tbody></table>
+<h2>Source別</h2>
 <table><thead><tr><th>Source</th><th>Lines</th><th>Line %</th>
 <th>Branches</th><th>Branch %</th></tr></thead><tbody>
 {"".join(table_rows)}
@@ -212,14 +278,18 @@ th,td{{border:1px solid #bbb;padding:.45rem;text-align:left}}th{{background:#eee
         encoding="utf-8",
     )
     print(
-        f"Event Utility C line: {totals['line_percent']:.2f}% [参考値]"
+        f"C Utility line: {totals['line_percent']:.2f}% [参考値]"
     )
-    print(
-        f"Event Utility C branch: {totals['branch_percent']:.2f}% / "
-        f"単体共通基準 {UNIT_BRANCH_MIN:.2f}% "
-        f"[{'OK' if branch_ok else 'NG'}]"
-    )
-    print(f"Event Utility C test: {test_status.upper()}")
+    print(f"C Utility branch total: {totals['branch_percent']:.2f}% [参考値]")
+    for module in modules:
+        module_ok = module["branch_percent"] >= UNIT_BRANCH_MIN
+        print(
+            f"C Utility {module['module']} branch: "
+            f"{module['branch_percent']:.2f}% / "
+            f"単体共通基準 {UNIT_BRANCH_MIN:.2f}% "
+            f"[{'OK' if module_ok else 'NG'}]"
+        )
+    print(f"C Utility test: {test_status.upper()}")
     return int(not (branch_ok and test_ok))
 
 
@@ -331,6 +401,14 @@ def generate_index(
     c_test_status = str(c_summary["test_status"]).upper()
     c_line_value = float(c_summary["line_percent"])
     c_branch_value = float(c_summary["branch_percent"])
+    c_module_lines = "<br>".join(
+        "{module}: {branch:.2f}%（基準 {minimum:.0f}%）".format(
+            module=html.escape(str(module["module"])),
+            branch=float(module["branch_percent"]),
+            minimum=UNIT_BRANCH_MIN,
+        )
+        for module in c_summary.get("modules", [])
+    )
     output.write_text(
         f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><title>品質レポート</title>
@@ -345,10 +423,11 @@ body{{font-family:sans-serif;margin:2rem;color:#222}}.cards{{display:flex;gap:1r
 <p>基準: {UNIT_BRANCH_MIN:.0f}%以上</p><a href="coverage/unit/html/index.html">詳細を見る</a></section>
 <section class="card"><h2>結合テスト C1</h2><div class="value">{integration_value:.2f}%</div>
 <p>基準: {INTEGRATION_BRANCH_MIN:.0f}%以上</p><a href="coverage/integration/html/index.html">詳細を見る</a></section>
-<section class="card"><h2>Event Utility Cテスト</h2><div class="value">{c_test_status}</div>
-<p>Line: {c_line_value:.2f}%（参考値）<br>
-Branch: {c_branch_value:.2f}%（単体共通基準 {UNIT_BRANCH_MIN:.0f}%）</p>
-<a href="coverage/event-c/html/index.html">Cテスト・Coverageを見る</a></section>
+<section class="card"><h2>C Utility単体テスト</h2><div class="value">{c_test_status}</div>
+<p>全体Line: {c_line_value:.2f}%（参考値）<br>
+全体Branch: {c_branch_value:.2f}%（参考値）</p>
+<p>{c_module_lines}</p>
+<a href="coverage/utility-c/html/index.html">Cテスト・Coverageを見る</a></section>
 <section class="card"><h2>静的メトリクス</h2><p>CC上限: {CC_MAX:.0f}<br>MI下限: {MI_MIN:.0f}</p>
 <a href="metrics/index.html">CC・MI一覧を見る</a></section>
 <section class="card"><h2>C API・Test仕様書</h2>

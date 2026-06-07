@@ -1,7 +1,8 @@
-.PHONY: help check extended-check test utility-test docs rust-docs c-docs c-docs-check header header-check static-analysis utility-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
+.PHONY: help check extended-check test utility-test utility-event-test utility-log-test docs rust-docs c-docs c-docs-check header header-check static-analysis utility-static-analysis utility-log-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-event-fuzz-smoke utility-log-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
 
 BUILD_DIR ?= build/memory-buffer
 UTILITY_BUILD_DIR ?= build/utility-event
+UTILITY_LOG_BUILD_DIR ?= build/utility-log
 REPORT_DIR ?= build/reports
 PORTABLE_TARGET ?= thumbv7em-none-eabi
 NIGHTLY_TOOLCHAIN ?= nightly-2026-06-06
@@ -10,10 +11,13 @@ DOXYGEN ?= doxygen
 help:
 	@printf '%s\n' \
 		'Development targets:' \
-		'  test             Rust/C結合テストとEvent Utility単体テスト' \
-		'  utility-test     Event UtilityのC単体テスト' \
-		'  static-analysis  Rust、C利用例、Event Utilityの静的解析' \
-		'  utility-static-analysis Event UtilityのGCC静的解析' \
+		'  test             Rust/C結合テストと全C Utility単体テスト' \
+		'  utility-test     全C Utilityの単体テスト' \
+		'  utility-event-test Event UtilityのC単体テスト' \
+		'  utility-log-test Log UtilityのC単体テスト' \
+		'  static-analysis  Rust、C利用例、全C Utilityの静的解析' \
+		'  utility-static-analysis 全C UtilityのGCC静的解析' \
+		'  utility-log-static-analysis Log UtilityのGCC静的解析' \
 		'  docs             Rustdocと全C API/test仕様書を生成' \
 		'  c-docs           Doxygenで全C API/test仕様書を生成' \
 		'  c-docs-check     全headerのDocstring契約を検査' \
@@ -25,7 +29,8 @@ help:
 		'  portable-check   32 bit no_std targetへのcross build' \
 		'  miri             Miriによる単体テスト' \
 		'  fuzz-smoke       libFuzzer短時間検査' \
-		'  utility-fuzz-smoke Event Utility操作列をASan/UBSanで検査' \
+		'  utility-fuzz-smoke 全C Utility操作列をASan/UBSanで検査' \
+		'  utility-log-fuzz-smoke Log Utility操作列をASan/UBSanで検査' \
 		'  utility-fuzz     Event UtilityをClang libFuzzerで継続探索' \
 		'  cppcheck         C利用例のCppcheck' \
 		'  check            通常品質ゲート一式' \
@@ -60,7 +65,7 @@ static-analysis: utility-static-analysis
 		-I memory-buffer/include -c memory-buffer/examples/c_usage.c \
 		-o /tmp/memory_buffer_c_usage_analyzed.o
 
-utility-static-analysis:
+utility-static-analysis: utility-log-static-analysis
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -c Utility/event/src/utility_event_queue.c \
 		-o /tmp/utility_event_queue_analyzed.o
@@ -80,6 +85,26 @@ utility-static-analysis:
 		-c Utility/event/tests/test_utility_event_main.c \
 		-o /tmp/utility_event_main_test_analyzed.o
 
+utility-log-static-analysis:
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/log/include -c Utility/log/src/utility_logger.c \
+		-o /tmp/utility_logger_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/log/include -c Utility/log/src/utility_log_console.c \
+		-o /tmp/utility_log_console_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/log/include -I Utility/log/tests \
+		-c Utility/log/tests/test_utility_logger.c \
+		-o /tmp/utility_logger_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/log/include -I Utility/log/tests \
+		-c Utility/log/tests/test_utility_log_console.c \
+		-o /tmp/utility_log_console_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/log/include -I Utility/log/tests \
+		-c Utility/log/tests/test_utility_log_main.c \
+		-o /tmp/utility_log_main_test_analyzed.o
+
 cppcheck:
 	cppcheck --enable=warning,style,performance,portability \
 		--error-exitcode=1 --std=c11 --suppress=missingIncludeSystem \
@@ -88,7 +113,12 @@ cppcheck:
 		Utility/event/src/utility_event_dispatcher.c \
 		-I Utility/event/tests Utility/event/tests/test_utility_event_queue.c \
 		Utility/event/tests/test_utility_event_dispatcher.c \
-		Utility/event/tests/test_utility_event_main.c
+		Utility/event/tests/test_utility_event_main.c \
+		-I Utility/log/include Utility/log/src/utility_logger.c \
+		Utility/log/src/utility_log_console.c \
+		-I Utility/log/tests Utility/log/tests/test_utility_logger.c \
+		Utility/log/tests/test_utility_log_console.c \
+		Utility/log/tests/test_utility_log_main.c
 
 miri:
 	cargo +$(NIGHTLY_TOOLCHAIN) miri test --lib
@@ -97,7 +127,9 @@ fuzz-smoke:
 	ASAN_OPTIONS=detect_leaks=0 cargo +$(NIGHTLY_TOOLCHAIN) fuzz run operation_sequence \
 		--fuzz-dir fuzz -- -runs=2000 -max_len=4096
 
-utility-fuzz-smoke:
+utility-fuzz-smoke: utility-event-fuzz-smoke utility-log-fuzz-smoke
+
+utility-event-fuzz-smoke:
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror \
 		-fsanitize=address,undefined -fno-omit-frame-pointer \
 		-I Utility/event/include \
@@ -107,6 +139,17 @@ utility-fuzz-smoke:
 		Utility/event/fuzz/fuzz_smoke_main.c \
 		-o /tmp/utility_event_fuzz_smoke
 	ASAN_OPTIONS=detect_leaks=0 /tmp/utility_event_fuzz_smoke
+
+utility-log-fuzz-smoke:
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		-I Utility/log/include \
+		Utility/log/src/utility_logger.c \
+		Utility/log/src/utility_log_console.c \
+		Utility/log/fuzz/fuzz_log_operations.c \
+		Utility/log/fuzz/fuzz_smoke_main.c \
+		-o /tmp/utility_log_fuzz_smoke
+	ASAN_OPTIONS=detect_leaks=0 /tmp/utility_log_fuzz_smoke
 
 utility-fuzz:
 	clang -std=c11 -Wall -Wextra -Wpedantic -Werror \
@@ -132,7 +175,9 @@ metrics:
 		--output $(REPORT_DIR)/metrics/index.html \
 		memory-buffer/src/buffer.rs memory-buffer/examples/c_usage.c \
 		Utility/event/src/utility_event_queue.c \
-		Utility/event/src/utility_event_dispatcher.c
+		Utility/event/src/utility_event_dispatcher.c \
+		Utility/log/src/utility_logger.c \
+		Utility/log/src/utility_log_console.c
 
 quality: coverage metrics
 
@@ -141,7 +186,7 @@ quality-report: quality c-docs
 		--output $(REPORT_DIR)/index.html \
 		--unit $(REPORT_DIR)/coverage/unit/summary.json \
 		--integration $(REPORT_DIR)/coverage/integration/summary.json \
-		--c-coverage $(REPORT_DIR)/coverage/event-c/summary.json
+		--c-coverage $(REPORT_DIR)/coverage/utility-c/summary.json
 	@printf '品質レポート: %s/index.html\n' "$(REPORT_DIR)"
 
 test: utility-test
@@ -150,10 +195,17 @@ test: utility-test
 	cmake --build $(BUILD_DIR)
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
-utility-test:
+utility-test: utility-event-test utility-log-test
+
+utility-event-test:
 	cmake -S Utility/event -B $(UTILITY_BUILD_DIR)
 	cmake --build $(UTILITY_BUILD_DIR)
 	ctest --test-dir $(UTILITY_BUILD_DIR) --output-on-failure
+
+utility-log-test:
+	cmake -S Utility/log -B $(UTILITY_LOG_BUILD_DIR)
+	cmake --build $(UTILITY_LOG_BUILD_DIR)
+	ctest --test-dir $(UTILITY_LOG_BUILD_DIR) --output-on-failure
 
 docs: rust-docs c-docs
 
@@ -168,7 +220,9 @@ c-docs-check:
 	python3 tools/check_c_docs.py \
 		memory-buffer/include/*.h \
 		Utility/event/include/*.h \
-		Utility/event/tests/*.h
+		Utility/event/tests/*.h \
+		Utility/log/include/*.h \
+		Utility/log/tests/*.h
 
 docker-ready:
 	@docker version >/dev/null 2>&1 || { \
@@ -209,3 +263,4 @@ clean:
 	cargo clean
 	cmake -E remove_directory $(BUILD_DIR)
 	cmake -E remove_directory $(UTILITY_BUILD_DIR)
+	cmake -E remove_directory $(UTILITY_LOG_BUILD_DIR)
