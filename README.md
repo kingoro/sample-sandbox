@@ -1,4 +1,13 @@
-# Memory Buffer Library
+# Common Utility Development
+
+このrepositoryでは、共通Utilityをドメイン機能から分離し、実装、テスト、設計資料を
+同じ単位で管理する。
+
+- [Memory Buffer Library](memory-buffer/README.md)
+- [C Event Utility](Utility/event/README.md)
+- [C経験者向け はじめてのEvent Utility](Utility/event/README_BEGINNER.md)
+
+## Memory Buffer Library
 
 呼出側が用意した固定メモリ領域を、Cから安全に割り当て・読み書き・解放するための
 ライブラリ。

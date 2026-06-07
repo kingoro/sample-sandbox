@@ -28,6 +28,14 @@
 │   ├── include/               # 利用者向けheaderと生成ABI manifest
 │   ├── examples/              # C callerの実行例
 │   └── docs/                  # 設計、API、品質、利用手順
+├── Utility/
+│   └── event/
+│       ├── README_BEGINNER.md # Event駆動に不慣れなC開発者向け導入
+│       ├── include/           # 集約headerと責務別の公開header
+│       ├── src/               # QueueとDispatcherのC11実装
+│       ├── tests/             # C単体テスト
+│       ├── fuzz/              # C操作列fuzz harness
+│       └── docs/              # 設計、API、品質、利用手順
 ├── fuzz/
 │   ├── Cargo.toml             # cargo-fuzz専用の独立workspace
 │   ├── README.md              # fuzzの実行・解析手順
@@ -68,6 +76,15 @@ opaque context、Doxygen互換コメント、利用者向けの宣言を管理�
 `memory_buffer_generated.h`はcbindgenでRust定義から生成するABI manifestであり、
 直接編集しない。`make header-check`でRust側とのずれを検出し、更新が必要な場合は
 `make header`で再生成する。
+
+## Event Utility
+
+`Utility/event`は、ドメイン非依存の固定長Event Queueと同期DispatcherをC11で
+実装する。独立配布libraryではなく、利用側buildへsourceを組み込むUtilityである。
+heap、RTOS、I/Oへ依存せず、storageは呼出側が提供する。
+
+`make utility-test`でC単体テスト、`make utility-static-analysis`でGCC警告と
+`-fanalyzer`を実行する。通常の`make test`と`make check`にも含まれる。
 
 ## テストの配置
 

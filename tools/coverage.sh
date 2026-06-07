@@ -24,3 +24,5 @@ cargo +"${coverage_toolchain}" llvm-cov --workspace --test c_abi --branch --no-c
 python3 tools/quality.py check-coverage \
     --unit "${unit_dir}/summary.json" \
     --integration "${integration_dir}/summary.json"
+
+bash tools/c_coverage.sh "${reports}"

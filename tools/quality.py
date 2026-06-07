@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import html
 import json
 import subprocess
@@ -12,6 +13,8 @@ from pathlib import Path
 
 UNIT_BRANCH_MIN = 80.0
 INTEGRATION_BRANCH_MIN = 50.0
+C_LINE_MIN = 80.0
+C_BRANCH_MIN = 70.0
 CC_MAX = 15.0
 MI_MIN = 35.0
 
@@ -36,6 +39,120 @@ def check_coverage(unit: Path, integration: Path) -> int:
         print(f"{name}: {actual:.2f}% / 基準 {minimum:.2f}% [{status}]")
         failed |= actual < minimum
     return int(failed)
+
+
+def percent(covered: int, total: int) -> float:
+    return 100.0 if total == 0 else (covered * 100.0) / total
+
+
+def c_source_rows(paths: list[Path]) -> tuple[list[dict], dict]:
+    rows: list[dict] = []
+    totals = {
+        "lines_covered": 0,
+        "lines_total": 0,
+        "branches_covered": 0,
+        "branches_total": 0,
+    }
+    for path in paths:
+        with gzip.open(path, "rt", encoding="utf-8") as stream:
+            report = json.load(stream)
+        for source in report.get("files", []):
+            line_total = 0
+            line_covered = 0
+            branch_total = 0
+            branch_covered = 0
+            for line in source.get("lines", []):
+                line_total += 1
+                line_covered += int(line.get("count", 0) > 0)
+                branches = line.get("branches", [])
+                branch_total += len(branches)
+                branch_covered += sum(
+                    int(branch.get("count", 0) > 0) for branch in branches
+                )
+            row = {
+                "file": source["file"],
+                "lines_covered": line_covered,
+                "lines_total": line_total,
+                "line_percent": percent(line_covered, line_total),
+                "branches_covered": branch_covered,
+                "branches_total": branch_total,
+                "branch_percent": percent(branch_covered, branch_total),
+            }
+            rows.append(row)
+            for key in totals:
+                totals[key] += row[key]
+    totals["line_percent"] = percent(
+        totals["lines_covered"], totals["lines_total"]
+    )
+    totals["branch_percent"] = percent(
+        totals["branches_covered"], totals["branches_total"]
+    )
+    return rows, totals
+
+
+def generate_c_coverage(
+    output: Path, html_output: Path, test_status: str, inputs: list[Path]
+) -> int:
+    rows, totals = c_source_rows(inputs)
+    summary = {
+        "test_status": test_status,
+        "tests_total": 1,
+        "tests_passed": int(test_status == "passed"),
+        **totals,
+        "files": rows,
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    table_rows = []
+    for row in rows:
+        table_rows.append(
+            "<tr><td>{file}</td><td>{lc}/{lt}</td><td>{lp:.2f}%</td>"
+            "<td>{bc}/{bt}</td><td>{bp:.2f}%</td></tr>".format(
+                file=html.escape(row["file"]),
+                lc=row["lines_covered"],
+                lt=row["lines_total"],
+                lp=row["line_percent"],
+                bc=row["branches_covered"],
+                bt=row["branches_total"],
+                bp=row["branch_percent"],
+            )
+        )
+    line_ok = totals["line_percent"] >= C_LINE_MIN
+    branch_ok = totals["branch_percent"] >= C_BRANCH_MIN
+    test_ok = test_status == "passed"
+    html_output.parent.mkdir(parents=True, exist_ok=True)
+    html_output.write_text(
+        f"""<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>Event Utility C Coverage</title>
+<style>
+body{{font-family:sans-serif;margin:2rem;color:#222}}table{{border-collapse:collapse;width:100%}}
+th,td{{border:1px solid #bbb;padding:.45rem;text-align:left}}th{{background:#eee}}
+.ok{{color:#176b2c;font-weight:bold}}.ng{{color:#a40000;font-weight:bold}}
+</style></head><body>
+<h1>Event Utility Cテスト・Coverage</h1>
+<p>テスト: <span class="{"ok" if test_ok else "ng"}">{html.escape(test_status.upper())}</span></p>
+<p>Line coverage: <span class="{"ok" if line_ok else "ng"}">{totals["line_percent"]:.2f}%</span>
+（基準 {C_LINE_MIN:.0f}%以上）</p>
+<p>Branch coverage: <span class="{"ok" if branch_ok else "ng"}">{totals["branch_percent"]:.2f}%</span>
+（基準 {C_BRANCH_MIN:.0f}%以上）</p>
+<table><thead><tr><th>Source</th><th>Lines</th><th>Line %</th>
+<th>Branches</th><th>Branch %</th></tr></thead><tbody>
+{"".join(table_rows)}
+</tbody></table></body></html>
+""",
+        encoding="utf-8",
+    )
+    print(
+        f"Event Utility C line: {totals['line_percent']:.2f}% / "
+        f"基準 {C_LINE_MIN:.2f}% [{'OK' if line_ok else 'NG'}]"
+    )
+    print(
+        f"Event Utility C branch: {totals['branch_percent']:.2f}% / "
+        f"基準 {C_BRANCH_MIN:.2f}% [{'OK' if branch_ok else 'NG'}]"
+    )
+    print(f"Event Utility C test: {test_status.upper()}")
+    return int(not (line_ok and branch_ok and test_ok))
 
 
 def analysis_json(path: Path) -> dict:
@@ -136,10 +253,16 @@ code{background:#eee;padding:.15rem .3rem}
     return int(failed)
 
 
-def generate_index(output: Path, unit: Path, integration: Path) -> None:
+def generate_index(
+    output: Path, unit: Path, integration: Path, c_coverage: Path
+) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     unit_value = branch_percent(unit)
     integration_value = branch_percent(integration)
+    c_summary = load_json(c_coverage)
+    c_test_status = str(c_summary["test_status"]).upper()
+    c_line_value = float(c_summary["line_percent"])
+    c_branch_value = float(c_summary["branch_percent"])
     output.write_text(
         f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><title>品質レポート</title>
@@ -148,12 +271,16 @@ body{{font-family:sans-serif;margin:2rem;color:#222}}.cards{{display:flex;gap:1r
 .card{{border:1px solid #bbb;border-radius:.5rem;padding:1rem;min-width:15rem}}
 .value{{font-size:2rem;font-weight:bold}}a{{color:#075ea8}}
 </style></head><body>
-<h1>memory-buffer 品質レポート</h1>
+<h1>共通Utility 品質レポート</h1>
 <div class="cards">
 <section class="card"><h2>単体テスト C1</h2><div class="value">{unit_value:.2f}%</div>
 <p>基準: {UNIT_BRANCH_MIN:.0f}%以上</p><a href="coverage/unit/html/index.html">詳細を見る</a></section>
 <section class="card"><h2>結合テスト C1</h2><div class="value">{integration_value:.2f}%</div>
 <p>基準: {INTEGRATION_BRANCH_MIN:.0f}%以上</p><a href="coverage/integration/html/index.html">詳細を見る</a></section>
+<section class="card"><h2>Event Utility Cテスト</h2><div class="value">{c_test_status}</div>
+<p>Line: {c_line_value:.2f}%（基準 {C_LINE_MIN:.0f}%）<br>
+Branch: {c_branch_value:.2f}%（基準 {C_BRANCH_MIN:.0f}%）</p>
+<a href="coverage/event-c/html/index.html">Cテスト・Coverageを見る</a></section>
 <section class="card"><h2>静的メトリクス</h2><p>CC上限: {CC_MAX:.0f}<br>MI下限: {MI_MIN:.0f}</p>
 <a href="metrics/index.html">CC・MI一覧を見る</a></section>
 </div></body></html>
@@ -174,20 +301,34 @@ def main() -> int:
     metrics.add_argument("--output", type=Path, required=True)
     metrics.add_argument("sources", nargs="+", type=Path)
 
+    c_coverage = subparsers.add_parser("c-coverage")
+    c_coverage.add_argument("--output", type=Path, required=True)
+    c_coverage.add_argument("--html", type=Path, required=True)
+    c_coverage.add_argument(
+        "--test-status", choices=("passed", "failed"), required=True
+    )
+    c_coverage.add_argument("inputs", nargs="+", type=Path)
+
     index = subparsers.add_parser("index")
     index.add_argument("--output", type=Path, required=True)
     index.add_argument("--unit", type=Path, required=True)
     index.add_argument("--integration", type=Path, required=True)
+    index.add_argument("--c-coverage", type=Path, required=True)
 
     args = parser.parse_args()
     if args.command == "check-coverage":
         return check_coverage(args.unit, args.integration)
     if args.command == "metrics":
         return generate_metrics(args.output, args.sources)
-    generate_index(args.output, args.unit, args.integration)
+    if args.command == "c-coverage":
+        return generate_c_coverage(
+            args.output, args.html, args.test_status, args.inputs
+        )
+    generate_index(
+        args.output, args.unit, args.integration, args.c_coverage
+    )
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
