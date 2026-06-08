@@ -220,13 +220,11 @@ handlerはEventを受け取り、自moduleの状態更新や次の短い処理�
 ## 現在まだない機能
 
 このUtilityに現在含まれるのはEvent、Queue、Dispatcher、State Machine、
-Event・状態遷移traceのrecord化とLog Utility adapterである。
+Timer Event、Event・状態遷移traceのrecord化とLog Utility adapterである。
 
-- Timer Event
 - Buffer Poolとの所有権連携
 
-Timer Event、Buffer Pool連携は未実装であり、必要な契約を定めてから責務別ファイルとして
-追加する。
+Buffer Pool連携は未実装であり、必要な契約を定めてから責務別ファイルとして追加する。
 
 ## 検証方法
 

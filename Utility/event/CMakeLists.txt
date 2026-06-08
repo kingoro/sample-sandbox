@@ -7,6 +7,7 @@ add_executable(
     src/utility_event_queue.c
     src/utility_event_dispatcher.c
     src/utility_event_state_machine.c
+    src/utility_event_timer.c
     src/utility_event_trace.c
     src/utility_event_trace_log.c
     ../log/src/utility_logger.c
@@ -14,6 +15,7 @@ add_executable(
     tests/test_utility_event_queue.c
     tests/test_utility_event_dispatcher.c
     tests/test_utility_event_state_machine.c
+    tests/test_utility_event_timer.c
     tests/test_utility_event_trace.c
     tests/test_utility_event_main.c)
 
@@ -35,6 +37,7 @@ add_executable(
     src/utility_event_queue.c
     src/utility_event_dispatcher.c
     src/utility_event_state_machine.c
+    src/utility_event_timer.c
     src/utility_event_trace.c
     src/utility_event_trace_log.c
     ../log/src/utility_logger.c

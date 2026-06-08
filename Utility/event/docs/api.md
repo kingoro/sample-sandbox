@@ -12,6 +12,7 @@ QueueまたはDispatcherだけを利用するmoduleは、対応する個別heade
 | `utility_event_queue.h` | 固定長FIFO Queue |
 | `utility_event_dispatcher.h` | handler登録と同期配送 |
 | `utility_event_state_machine.h` | table-driven State Machine |
+| `utility_event_timer.h` | 外部tick駆動Timer Scheduler |
 | `utility_event_trace.h` | Event・状態遷移trace record生成 |
 | `utility_event_trace_log.h` | trace recordのLog Utility adapter |
 
@@ -67,6 +68,25 @@ QueueまたはDispatcherだけを利用するmoduleは、対応する個別heade
 
 このAPIは状態名文字列を実行制御には使用しない。名前は診断、table review、
 ドキュメント生成の補助情報であり、制御は固定幅の状態IDとEvent IDで行う。
+
+## Timer API
+
+| API | 動作 |
+| --- | --- |
+| `ut_event_timer_scheduler_init` | 呼出側slot storageで初期化 |
+| `ut_event_timer_start` | 未使用IDでone-shot/periodic Timerを開始 |
+| `ut_event_timer_restart` | active TimerのEventと時刻設定を置換 |
+| `ut_event_timer_cancel` | active Timerを取消してslotを解放 |
+| `ut_event_timer_process` | deadline到達EventをQueueへ発行 |
+| `ut_event_timer_count` | active Timer件数を取得 |
+| `ut_event_timer_next_deadline` | 最短deadlineを取得 |
+
+Timerの時刻単位はUtilityで固定しない。呼出側は同一Schedulerに対して同じ単調clockと
+単位を使用する。`delay`は最初の発火まで、`period`は以後の周期を表す。`period == 0`
+ならone-shotである。
+
+Queue満杯時は、満杯を検出したTimer以降をactiveなまま残して`UT_EVENT_FULL`を返す。
+それ以前に発行済みのTimerは確定済みであり、`out_emitted_count`で件数を取得できる。
 
 ## Trace API
 

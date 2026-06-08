@@ -8,6 +8,7 @@ Cでイベント駆動処理を構成するための、ドメイン非依存の�
 - 呼出側提供storageを使う固定長FIFO Event Queue
 - Event IDに応じてhandlerを同期実行するDispatcher
 - Event IDで駆動するtable-driven State Machine
+- 外部の単調tickでone-shot/periodic Eventを発行するTimer Scheduler
 - Event履歴と状態遷移履歴を外部sinkへ通知するtrace hook
 - trace recordをLog Utilityへ出力するadapter
 - heap、RTOS、thread、I/Oへ依存しないC11実装
@@ -24,12 +25,11 @@ Cでイベント駆動処理を構成するための、ドメイン非依存の�
 | Event定義 | 実装済み | ID、発行元、非所有payload参照 |
 | Dispatcher | 実装済み | Event IDによる同期配送 |
 | State Machine | 実装済み | 状態table、遷移table、guard、action、entry/exit処理 |
-| Timer Event | 未実装 | clock adapter、deadline、timeout発行 |
+| Timer Event | 実装済み | 外部tick、one-shot/periodic、restart/cancel、Queue発行 |
 | Buffer Pool連携 | 未実装 | handle所有権移譲、解放規則 |
-| ログ・状態遷移trace | 一部実装 | Event trace hook、状態遷移trace record、Log Utility adapter |
+| ログ・状態遷移trace | 実装済み | Event trace hook、State Machine自動遷移trace、Log Utility adapter |
 
-このため、現状をイベント駆動基盤一式とは扱わない。State Machine以降は、
-時刻源、Buffer Pool API、状態遷移規則を定めてから追加する。
+Buffer Pool連携は、Buffer Pool APIと所有権契約を定めてから責務別に追加する。
 
 ## Header構成
 
@@ -46,6 +46,10 @@ utility_event.h
 ├── utility_event_state_machine.h
 │   ├── utility_event_types.h
 │   ├── utility_event_trace.h
+│   └── utility_event_result.h
+├── utility_event_timer.h
+│   ├── utility_event_queue.h
+│   ├── utility_event_types.h
 │   └── utility_event_result.h
 ├── utility_event_trace.h
 │   ├── utility_event_types.h
@@ -137,6 +141,57 @@ void app_event_loop_step(void)
 同じState Machineを複数threadから直接呼ばず、単一のEvent処理contextへ集約する。
 
 guard、entry/exit、action、traceを含む例は[利用方法](docs/usage.md)を参照する。
+
+## Timer Eventの使い方
+
+Timer Schedulerはclockやthreadを所有しない。main loop、RTOS task、Linux workerが
+monotonicな現在tickを取得し、`ut_event_timer_process()`へ渡す。
+
+```c
+static ut_event_timer_slot_t timer_storage[4];
+static ut_event_timer_scheduler_t timer_scheduler;
+
+void app_timer_init(void)
+{
+    (void)ut_event_timer_scheduler_init(
+        &timer_scheduler,
+        timer_storage,
+        sizeof(timer_storage) / sizeof(timer_storage[0]));
+}
+```
+
+one-shot timeoutを開始する。
+
+```c
+const ut_event_t timeout_event = {
+    APP_EVENT_ERROR,
+    2u,
+    NULL,
+    0u
+};
+
+(void)ut_event_timer_start(
+    &timer_scheduler,
+    1u,
+    &timeout_event,
+    now_ticks,
+    500u,
+    0u);
+```
+
+Event loopで期限到達TimerをQueueへ発行する。
+
+```c
+(void)ut_event_timer_process(
+    &timer_scheduler,
+    now_ticks,
+    &event_queue,
+    NULL);
+```
+
+`period`を0より大きくするとperiodic Timerになる。処理が遅れて複数周期を通過しても
+過去回数分をburst発行せず、1 Eventだけ発行して次の未来deadlineへ進む。Queue満杯時は
+Timerをactiveなまま残すため、Queueを処理した後に再実行できる。
 
 ## 資料
 

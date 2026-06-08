@@ -29,6 +29,7 @@ event_sources=(
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
     Utility/event/src/utility_event_state_machine.c
+    Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c
     Utility/event/src/utility_event_trace_log.c
     Utility/log/src/utility_logger.c
@@ -36,6 +37,7 @@ event_sources=(
     Utility/event/tests/test_utility_event_queue.c
     Utility/event/tests/test_utility_event_dispatcher.c
     Utility/event/tests/test_utility_event_state_machine.c
+    Utility/event/tests/test_utility_event_timer.c
     Utility/event/tests/test_utility_event_trace.c
     Utility/event/tests/test_utility_event_main.c
 )
@@ -52,6 +54,7 @@ event_integration_sources=(
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
     Utility/event/src/utility_event_state_machine.c
+    Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c
     Utility/event/src/utility_event_trace_log.c
     Utility/log/src/utility_logger.c
@@ -99,6 +102,7 @@ production_sources=(
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
     Utility/event/src/utility_event_state_machine.c
+    Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c
     Utility/event/src/utility_event_trace_log.c
     Utility/log/src/utility_logger.c

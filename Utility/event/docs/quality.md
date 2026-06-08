@@ -17,21 +17,25 @@ make utility-test
 - handlerからの再帰dispatch拒否
 - State Machineの通常遷移、内部遷移、ANY遷移
 - State Machineのguard、action、entry、exit、trace、再入拒否
+- Timerのone-shot、periodic、restart、cancel、最短deadline
+- periodic遅延時のcoalesce、Queue満杯時の再試行、uint64_t境界
 - NULL、容量0、未初期化context
 
 結合テスト`utility_event_integration`では、次の製品利用に近い経路を一つの
 シナリオとして検証する。
 
 ```text
-Event Queue
+Timer Scheduler
+    -> Event Queue
     -> Dispatcher
     -> State Machine
     -> Event・状態遷移Trace
     -> Log Utility RAM Ring
 ```
 
-シナリオは`IDLE -> RUNNING -> FAULT -> IDLE`を通り、途中に遷移対象外Eventを
-含める。最終状態、entry/action呼出回数、Event履歴、状態遷移履歴を検証する。
+シナリオは`IDLE -> RUNNING -> Timer timeout -> FAULT -> IDLE`を通り、途中に
+遷移対象外Eventを含める。最終状態、entry/action呼出回数、Timer消費、Event履歴、
+状態遷移履歴を検証する。
 
 通常の完了条件:
 
@@ -75,13 +79,14 @@ thread safetyやISR safetyはこのUtility単体の保証範囲外であり、�
 ## Fuzz test
 
 `fuzz/fuzz_event_operations.c`は4 byte単位の命令列を解釈し、QueueとDispatcherの
-APIをランダムな順序で実行する。次の不変条件を参照modelと照合する。
+APIに加えてTimer APIをランダムな順序で実行する。次の不変条件を照合する。
 
 - Queue件数がpush、pop、clearの結果と一致する
 - Queue件数がcapacityを超えない
 - subscription件数がsubscribe、unsubscribeの結果と一致する
 - subscription件数がcapacityを超えない
 - dispatchの戻り値と実行handler数が矛盾しない
+- Timer active件数がslot状態と一致しcapacityを超えない
 - ASan／UBSanが範囲外access、use-after-free、整数UBを報告しない
 
 短時間検査はGCCでも実行できる。

@@ -76,6 +76,9 @@ utility-static-analysis: utility-log-static-analysis
 		-I Utility/event/include -c Utility/event/src/utility_event_state_machine.c \
 		-o /tmp/utility_event_state_machine_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -c Utility/event/src/utility_event_timer.c \
+		-o /tmp/utility_event_timer_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -c Utility/event/src/utility_event_trace.c \
 		-o /tmp/utility_event_trace_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
@@ -94,6 +97,10 @@ utility-static-analysis: utility-log-static-analysis
 		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_state_machine.c \
 		-o /tmp/utility_event_state_machine_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_timer.c \
+		-o /tmp/utility_event_timer_test_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_trace.c \
@@ -135,11 +142,13 @@ cppcheck:
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
 		Utility/event/src/utility_event_trace_log.c \
 		-I Utility/event/tests Utility/event/tests/test_utility_event_queue.c \
 		Utility/event/tests/test_utility_event_dispatcher.c \
 		Utility/event/tests/test_utility_event_state_machine.c \
+		Utility/event/tests/test_utility_event_timer.c \
 		Utility/event/tests/test_utility_event_trace.c \
 		Utility/event/tests/test_utility_event_integration.c \
 		Utility/event/tests/test_utility_event_main.c \
@@ -165,6 +174,7 @@ utility-event-fuzz-smoke:
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
 		Utility/event/fuzz/fuzz_event_operations.c \
 		Utility/event/fuzz/fuzz_smoke_main.c \
@@ -189,6 +199,7 @@ utility-fuzz:
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
 		Utility/event/fuzz/fuzz_event_operations.c \
 		-o /tmp/utility_event_fuzz
@@ -210,6 +221,7 @@ metrics:
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
 		Utility/event/src/utility_event_trace_log.c \
 		Utility/log/src/utility_logger.c \

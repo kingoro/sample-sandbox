@@ -14,6 +14,10 @@
 #define INTEGRATION_SUBSCRIPTION_CAPACITY 2u
 /** 結合シナリオのLog Ring容量。 */
 #define INTEGRATION_LOG_CAPACITY 16u
+/** 結合シナリオのTimer容量。 */
+#define INTEGRATION_TIMER_CAPACITY 2u
+/** watchdog Timer ID。 */
+#define INTEGRATION_TIMER_WATCHDOG 1u
 
 /** 結合シナリオの状態ID。 */
 enum {
@@ -197,6 +201,8 @@ static int test_operational_fault_recovery_scenario(void)
     ut_event_queue_t queue;
     ut_event_dispatcher_t dispatcher;
     ut_event_state_machine_t machine;
+    ut_event_timer_scheduler_t timer_scheduler;
+    ut_event_timer_slot_t timer_storage[INTEGRATION_TIMER_CAPACITY];
     ut_event_trace_t state_trace;
     ut_event_trace_t event_trace;
     ut_logger_t logger;
@@ -264,12 +270,23 @@ static int test_operational_fault_recovery_scenario(void)
             103u
         }
     };
-    const ut_event_t events[] = {
+    const ut_event_t initial_events[] = {
         {INTEGRATION_EVENT_START, 1u, NULL, 0u},
-        {INTEGRATION_EVENT_DIAGNOSTIC, 2u, NULL, 0u},
-        {INTEGRATION_EVENT_ERROR, 3u, NULL, 0u},
-        {INTEGRATION_EVENT_RESET, 4u, NULL, 0u}
+        {INTEGRATION_EVENT_DIAGNOSTIC, 2u, NULL, 0u}
     };
+    const ut_event_t timeout_event = {
+        INTEGRATION_EVENT_ERROR,
+        3u,
+        NULL,
+        0u
+    };
+    const ut_event_t reset_event = {
+        INTEGRATION_EVENT_RESET,
+        4u,
+        NULL,
+        0u
+    };
+    size_t emitted_count = 0u;
     size_t index;
 
     CHECK(ut_event_queue_init(
@@ -280,6 +297,10 @@ static int test_operational_fault_recovery_scenario(void)
         &dispatcher,
         subscription_storage,
         INTEGRATION_SUBSCRIPTION_CAPACITY) == UT_EVENT_OK);
+    CHECK(ut_event_timer_scheduler_init(
+        &timer_scheduler,
+        timer_storage,
+        INTEGRATION_TIMER_CAPACITY) == UT_EVENT_OK);
     CHECK(ut_logger_init(
         &logger,
         log_storage,
@@ -320,12 +341,44 @@ static int test_operational_fault_recovery_scenario(void)
         ut_event_trace_dispatch_handler,
         &event_trace) == UT_EVENT_OK);
 
-    for (index = 0u; index < (sizeof(events) / sizeof(events[0])); index++) {
-        CHECK(ut_event_queue_push(&queue, &events[index]) == UT_EVENT_OK);
+    for (index = 0u;
+         index < (sizeof(initial_events) / sizeof(initial_events[0]));
+         index++) {
+        CHECK(ut_event_queue_push(&queue, &initial_events[index]) ==
+            UT_EVENT_OK);
     }
+    CHECK(drain_event_queue(&queue, &dispatcher) == 0);
+    CHECK(ut_event_state_machine_current_state(&machine) ==
+        INTEGRATION_STATE_RUNNING);
+
+    CHECK(ut_event_timer_start(
+        &timer_scheduler,
+        INTEGRATION_TIMER_WATCHDOG,
+        &timeout_event,
+        100u,
+        50u,
+        0u) == UT_EVENT_OK);
+    CHECK(ut_event_timer_process(
+        &timer_scheduler,
+        149u,
+        &queue,
+        &emitted_count) == UT_EVENT_OK);
+    CHECK(emitted_count == 0u);
+    CHECK(ut_event_timer_process(
+        &timer_scheduler,
+        150u,
+        &queue,
+        &emitted_count) == UT_EVENT_OK);
+    CHECK(emitted_count == 1u);
+    CHECK(drain_event_queue(&queue, &dispatcher) == 0);
+    CHECK(ut_event_state_machine_current_state(&machine) ==
+        INTEGRATION_STATE_FAULT);
+
+    CHECK(ut_event_queue_push(&queue, &reset_event) == UT_EVENT_OK);
     CHECK(drain_event_queue(&queue, &dispatcher) == 0);
 
     CHECK(ut_event_queue_count(&queue) == 0u);
+    CHECK(ut_event_timer_count(&timer_scheduler) == 0u);
     CHECK(context.state_dispatch_count == 4u);
     CHECK(context.state_not_found_count == 1u);
     CHECK(context.last_state_result == UT_EVENT_OK);

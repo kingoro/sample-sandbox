@@ -27,6 +27,13 @@ int run_utility_event_dispatcher_tests(void);
 int run_utility_event_state_machine_tests(void);
 
 /**
+ * Timer Eventの単体テストをすべて実行する。
+ *
+ * @return 全テスト成功時は0、失敗時は1。
+ */
+int run_utility_event_timer_tests(void);
+
+/**
  * Event traceとLog adapterの単体テストをすべて実行する。
  *
  * @return 全テスト成功時は0、失敗時は1。

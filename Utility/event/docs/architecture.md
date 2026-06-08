@@ -63,6 +63,29 @@ Log Utilityには依存しない。
 非同期active objectは直接実装しない。これらは有用だが、最初から入れると共通Utilityの
 検証面積が大きくなるため、必要になった時点でtable schemaを拡張する。
 
+## Timer Event
+
+Timer Schedulerは呼出側が提供する固定長slot配列へ、Timer ID、Event記述子、deadline、
+periodを保持する。clock callbackやhardware timerを内部に持たず、呼出側が取得した
+`uint64_t`の単調tickを`ut_event_timer_process`へ渡す。
+
+この形を選ぶ理由:
+
+- wall clock補正や時刻設定変更からtimeout判定を分離できる
+- bare metal、各種RTOS、組み込みLinuxで同じTimer coreを使用できる
+- hardware ISRやTimer service taskで製品処理を実行せず、Event Queueへ仕事を移せる
+- 呼出側storageだけを使うため、heap断片化や実行中allocationを避けられる
+- `next_deadline`からtickless sleepやhardware compare値を利用側で決定できる
+- clockを任意tickとして注入でき、境界値や長時間経過を単体テストで再現できる
+
+one-shotは発行成功後にslotを解放する。periodic Timerは予定deadlineを基準に次回時刻を
+計算するため、process呼出しの遅延が周期へ累積しない。複数周期を通過していた場合は
+1 Eventへcoalesceし、次の未来deadlineまで進める。これにより処理復帰直後のEvent burstを
+避ける。
+
+Queueが満杯の場合はTimerを消費しない。呼出側はQueueをdrainした後で同じ`now`または
+新しい`now`を使って再試行できる。
+
 ## Trace
 
 Traceは`ut_event_trace_t`へ登録したsink callbackへ、Event履歴または状態遷移履歴を
@@ -76,6 +99,11 @@ Traceは`ut_event_trace_t`へ登録したsink callbackへ、Event履歴または
 Log Utilityへ保存する場合は`utility_event_trace_log.h`のadapterをsinkとして使う。
 Event coreはLoggerを所有せず、Log以外のsinkや製品固有trace sinkも同じcallback契約で
 接続できる。
+
+Traceの実装範囲は、Eventと状態遷移のrecord生成、sink通知、Log Utility adapter、
+State Machineからの自動通知までとする。永続化、通信送信、USB/UART出力を対象外と
+しているのは未実装残ではなく、Application Logと製品保守機能の責務を分離するためで
+ある。
 
 ## 呼出側の責務
 
@@ -94,7 +122,7 @@ Event coreはLoggerを所有せず、Log以外のsinkや製品固有trace sink�
 - 非同期handler実行
 - event priority、永続化、network配送
 - 階層State Machine、並行状態、history state
-- clock、timer、timeout Event生成
+- hardware timer、clock device、tick変換の所有
 - Buffer Pool handleの所有権移譲
 - Log Recordの永続化、通信送信、USB/UART出力
 
@@ -104,6 +132,9 @@ Event coreはLoggerを所有せず、Log以外のsinkや製品固有trace sink�
 - Quantum Leaps QP/C: https://www.state-machine.com/qpc/
 - Practical UML Statecharts in C/C++: https://www.state-machine.com/psicc2/
 - C State Machine switch vs struct: https://terurin.work/posts/c-state-machine/c-state-machine-switch-vs-struct/
+- POSIX CLOCK_MONOTONIC: https://pubs.opengroup.org/onlinepubs/000095399/functions/clock_getres.html
+- Zephyr Timers: https://docs.zephyrproject.org/latest/kernel/services/timing/timers.html
+- FreeRTOS Software Timers: https://www.freertos.org/Documentation/02-Kernel/02-Kernel-features/05-Software-timers/01-Software-timers
 
 これらは設計判断の参考であり、本UtilityはSCXML実行器やQP/C互換frameworkではない。
 組み込みCの長期保守で重要な、event-driven、明示的な遷移、entry/exit/action、

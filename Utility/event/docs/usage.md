@@ -147,6 +147,72 @@ static void on_state_machine_event(
 entry、exit、guard、traceが増えた時に処理順序がmoduleごとにばらつかない。遷移tableを
 単体テストやreviewの対象にできるため、長期保守ではtable-driven方式を標準形にする。
 
+## Timer Event
+
+Timer Schedulerへ固定長slot storageを渡す。
+
+```c
+static ut_event_timer_slot_t timer_storage[8];
+static ut_event_timer_scheduler_t timer_scheduler;
+
+void app_timer_init(void)
+{
+    (void)ut_event_timer_scheduler_init(
+        &timer_scheduler,
+        timer_storage,
+        sizeof(timer_storage) / sizeof(timer_storage[0]));
+}
+```
+
+one-shot watchdogを開始する。時刻単位はApplication内で統一する。
+
+```c
+enum {
+    APP_TIMER_WATCHDOG = 1u,
+    APP_EVENT_WATCHDOG_TIMEOUT = 20u
+};
+
+void app_watchdog_start(uint64_t now_ticks)
+{
+    const ut_event_t event = {
+        APP_EVENT_WATCHDOG_TIMEOUT,
+        2u,
+        NULL,
+        0u
+    };
+
+    (void)ut_event_timer_start(
+        &timer_scheduler,
+        APP_TIMER_WATCHDOG,
+        &event,
+        now_ticks,
+        500u,
+        0u);
+}
+```
+
+Event loopはclock adapterから単調tickを取得し、Timer Eventを既存Queueへ移す。
+
+```c
+void app_event_loop_step(uint64_t now_ticks)
+{
+    ut_event_t event;
+
+    (void)ut_event_timer_process(
+        &timer_scheduler,
+        now_ticks,
+        &event_queue,
+        NULL);
+
+    while (ut_event_queue_pop(&event_queue, &event) == UT_EVENT_OK) {
+        (void)ut_event_dispatch(&dispatcher, &event, NULL);
+    }
+}
+```
+
+Linuxでは`CLOCK_MONOTONIC`、RTOSではuptime tick、bare metalではhardware counterを
+adapterで`uint64_t`へ変換できる。UTCや日時clockをtimeout判定へ使わない。
+
 ## Event traceとLog連携
 
 ```c

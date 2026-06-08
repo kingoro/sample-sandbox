@@ -92,8 +92,8 @@ ut_event_result_t ut_event_trace_event(ut_event_trace_t *trace, const ut_event_t
 /**
  * 状態遷移履歴をtrace sinkへ通知する。
  *
- * State Machine本体は呼出側または今後のEvent Utility拡張が所有し、このAPIは
- * 遷移結果の記録だけを担当する。
+ * Event UtilityのState Machineまたは呼出側独自のState Machineから使用できる。
+ * このAPIは遷移結果の記録だけを担当する。
  *
  * @param trace 初期化済みtrace context。
  * @param source 遷移元moduleの識別子。未指定なら0。

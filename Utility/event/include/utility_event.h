@@ -10,6 +10,7 @@
 #include "utility_event_dispatcher.h"
 #include "utility_event_queue.h"
 #include "utility_event_state_machine.h"
+#include "utility_event_timer.h"
 #include "utility_event_trace.h"
 #include "utility_event_trace_log.h"
 
