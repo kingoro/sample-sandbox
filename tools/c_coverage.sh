@@ -28,8 +28,15 @@ common_flags=(
 event_sources=(
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
+    Utility/event/src/utility_event_state_machine.c
+    Utility/event/src/utility_event_trace.c
+    Utility/event/src/utility_event_trace_log.c
+    Utility/log/src/utility_logger.c
+    Utility/log/src/utility_log_console.c
     Utility/event/tests/test_utility_event_queue.c
     Utility/event/tests/test_utility_event_dispatcher.c
+    Utility/event/tests/test_utility_event_state_machine.c
+    Utility/event/tests/test_utility_event_trace.c
     Utility/event/tests/test_utility_event_main.c
 )
 
@@ -39,6 +46,17 @@ log_sources=(
     Utility/log/tests/test_utility_logger.c
     Utility/log/tests/test_utility_log_console.c
     Utility/log/tests/test_utility_log_main.c
+)
+
+event_integration_sources=(
+    Utility/event/src/utility_event_queue.c
+    Utility/event/src/utility_event_dispatcher.c
+    Utility/event/src/utility_event_state_machine.c
+    Utility/event/src/utility_event_trace.c
+    Utility/event/src/utility_event_trace_log.c
+    Utility/log/src/utility_logger.c
+    Utility/log/src/utility_log_console.c
+    Utility/event/tests/test_utility_event_integration.c
 )
 
 compile_sources()
@@ -55,11 +73,16 @@ compile_sources()
 
 mapfile -t event_objects < <(compile_sources event "${event_sources[@]}")
 mapfile -t log_objects < <(compile_sources log "${log_sources[@]}")
+mapfile -t event_integration_objects < <(
+    compile_sources event_integration "${event_integration_sources[@]}"
+)
 
 "${CC:-cc}" --coverage "${event_objects[@]}" \
     -o "${build_dir}/utility_event_tests"
 "${CC:-cc}" --coverage "${log_objects[@]}" \
     -o "${build_dir}/utility_log_tests"
+"${CC:-cc}" --coverage "${event_integration_objects[@]}" \
+    -o "${build_dir}/utility_event_integration_tests"
 
 test_status="passed"
 if ! "${build_dir}/utility_event_tests"; then
@@ -68,10 +91,16 @@ fi
 if ! "${build_dir}/utility_log_tests"; then
     test_status="failed"
 fi
+if ! "${build_dir}/utility_event_integration_tests"; then
+    test_status="failed"
+fi
 
 production_sources=(
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
+    Utility/event/src/utility_event_state_machine.c
+    Utility/event/src/utility_event_trace.c
+    Utility/event/src/utility_event_trace_log.c
     Utility/log/src/utility_logger.c
     Utility/log/src/utility_log_console.c
 )

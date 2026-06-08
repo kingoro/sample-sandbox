@@ -19,4 +19,18 @@ int run_utility_event_queue_tests(void);
  */
 int run_utility_event_dispatcher_tests(void);
 
+/**
+ * Event State Machineの単体テストをすべて実行する。
+ *
+ * @return 全テスト成功時は0、失敗時は1。
+ */
+int run_utility_event_state_machine_tests(void);
+
+/**
+ * Event traceとLog adapterの単体テストをすべて実行する。
+ *
+ * @return 全テスト成功時は0、失敗時は1。
+ */
+int run_utility_event_trace_tests(void);
+
 #endif

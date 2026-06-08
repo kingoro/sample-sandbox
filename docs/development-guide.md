@@ -170,6 +170,10 @@ cargo llvm-cov --version
 rust-code-analysis-cli --version
 ```
 
+`make c-docs`と`make check`は`tools/run_doxygen.sh`を経由する。system PATH上の
+`doxygen`を優先し、存在しない場合は`$HOME/.local/share/doxygen`へ展開された
+ユーザーローカル版を使用する。どちらもない場合は導入方法を表示して失敗する。
+
 最初は短い検査から順に実行する。
 
 ```sh

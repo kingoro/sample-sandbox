@@ -6,7 +6,7 @@ UTILITY_LOG_BUILD_DIR ?= build/utility-log
 REPORT_DIR ?= build/reports
 PORTABLE_TARGET ?= thumbv7em-none-eabi
 NIGHTLY_TOOLCHAIN ?= nightly-2026-06-06
-DOXYGEN ?= doxygen
+DOXYGEN ?= bash tools/run_doxygen.sh
 
 help:
 	@printf '%s\n' \
@@ -73,15 +73,37 @@ utility-static-analysis: utility-log-static-analysis
 		-I Utility/event/include -c Utility/event/src/utility_event_dispatcher.c \
 		-o /tmp/utility_event_dispatcher_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
-		-I Utility/event/include -I Utility/event/tests \
+		-I Utility/event/include -c Utility/event/src/utility_event_state_machine.c \
+		-o /tmp/utility_event_state_machine_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -c Utility/event/src/utility_event_trace.c \
+		-o /tmp/utility_event_trace_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include \
+		-c Utility/event/src/utility_event_trace_log.c \
+		-o /tmp/utility_event_trace_log_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_queue.c \
 		-o /tmp/utility_event_queue_test_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
-		-I Utility/event/include -I Utility/event/tests \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_dispatcher.c \
 		-o /tmp/utility_event_dispatcher_test_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
-		-I Utility/event/include -I Utility/event/tests \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_state_machine.c \
+		-o /tmp/utility_event_state_machine_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_trace.c \
+		-o /tmp/utility_event_trace_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_integration.c \
+		-o /tmp/utility_event_integration_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_main.c \
 		-o /tmp/utility_event_main_test_analyzed.o
 
@@ -109,10 +131,17 @@ cppcheck:
 	cppcheck --enable=warning,style,performance,portability \
 		--error-exitcode=1 --std=c11 --suppress=missingIncludeSystem \
 		-I memory-buffer/include memory-buffer/examples/c_usage.c \
-		-I Utility/event/include Utility/event/src/utility_event_queue.c \
+		-I Utility/event/include -I Utility/log/include \
+		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_trace.c \
+		Utility/event/src/utility_event_trace_log.c \
 		-I Utility/event/tests Utility/event/tests/test_utility_event_queue.c \
 		Utility/event/tests/test_utility_event_dispatcher.c \
+		Utility/event/tests/test_utility_event_state_machine.c \
+		Utility/event/tests/test_utility_event_trace.c \
+		Utility/event/tests/test_utility_event_integration.c \
 		Utility/event/tests/test_utility_event_main.c \
 		-I Utility/log/include Utility/log/src/utility_logger.c \
 		Utility/log/src/utility_log_console.c \
@@ -132,9 +161,11 @@ utility-fuzz-smoke: utility-event-fuzz-smoke utility-log-fuzz-smoke
 utility-event-fuzz-smoke:
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror \
 		-fsanitize=address,undefined -fno-omit-frame-pointer \
-		-I Utility/event/include \
+		-I Utility/event/include -I Utility/log/include \
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_trace.c \
 		Utility/event/fuzz/fuzz_event_operations.c \
 		Utility/event/fuzz/fuzz_smoke_main.c \
 		-o /tmp/utility_event_fuzz_smoke
@@ -154,9 +185,11 @@ utility-log-fuzz-smoke:
 utility-fuzz:
 	clang -std=c11 -Wall -Wextra -Wpedantic -Werror \
 		-fsanitize=fuzzer,address,undefined \
-		-I Utility/event/include \
+		-I Utility/event/include -I Utility/log/include \
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_trace.c \
 		Utility/event/fuzz/fuzz_event_operations.c \
 		-o /tmp/utility_event_fuzz
 	ASAN_OPTIONS=detect_leaks=0 /tmp/utility_event_fuzz \
@@ -176,6 +209,9 @@ metrics:
 		memory-buffer/src/buffer.rs memory-buffer/examples/c_usage.c \
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_trace.c \
+		Utility/event/src/utility_event_trace_log.c \
 		Utility/log/src/utility_logger.c \
 		Utility/log/src/utility_log_console.c
 

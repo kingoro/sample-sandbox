@@ -15,7 +15,23 @@ make utility-test
 - 重複登録、登録容量不足、解除
 - 配送先なし
 - handlerからの再帰dispatch拒否
+- State Machineの通常遷移、内部遷移、ANY遷移
+- State Machineのguard、action、entry、exit、trace、再入拒否
 - NULL、容量0、未初期化context
+
+結合テスト`utility_event_integration`では、次の製品利用に近い経路を一つの
+シナリオとして検証する。
+
+```text
+Event Queue
+    -> Dispatcher
+    -> State Machine
+    -> Event・状態遷移Trace
+    -> Log Utility RAM Ring
+```
+
+シナリオは`IDLE -> RUNNING -> FAULT -> IDLE`を通り、途中に遷移対象外Eventを
+含める。最終状態、entry/action呼出回数、Event履歴、状態遷移履歴を検証する。
 
 通常の完了条件:
 
@@ -51,7 +67,8 @@ C単体テストにも、他言語の単体テストと同じC1 branch coverage 
 line coverageは未実行箇所を探す参考値として表示するが、独自の閾値は設けない。
 
 不具合修正時は、Queueなら`tests/test_utility_event_queue.c`、Dispatcherなら
-`tests/test_utility_event_dispatcher.c`へ再現ケースを追加してから修正する。
+`tests/test_utility_event_dispatcher.c`、State Machineなら
+`tests/test_utility_event_state_machine.c`へ再現ケースを追加してから修正する。
 thread safetyやISR safetyはこのUtility単体の保証範囲外であり、利用環境のadapterと
 結合した試験を別途用意する。
 

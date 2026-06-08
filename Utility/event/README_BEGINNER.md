@@ -219,14 +219,14 @@ handlerはEventを受け取り、自moduleの状態更新や次の短い処理�
 
 ## 現在まだない機能
 
-このUtilityに現在含まれるのはEvent、Queue、Dispatcherである。
+このUtilityに現在含まれるのはEvent、Queue、Dispatcher、State Machine、
+Event・状態遷移traceのrecord化とLog Utility adapterである。
 
-- State Machine
 - Timer Event
 - Buffer Poolとの所有権連携
-- Event・状態遷移trace
 
-これらは未実装であり、必要な契約を定めてから責務別ファイルとして追加する。
+Timer Event、Buffer Pool連携は未実装であり、必要な契約を定めてから責務別ファイルとして
+追加する。
 
 ## 検証方法
 

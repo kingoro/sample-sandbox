@@ -72,3 +72,117 @@ Eventへ設定し、handler完了後に所有権規則に従って解放する�
 
 `app_post_print_data`が`UT_EVENT_FULL`を返した場合、呼出側は再試行、明示的な破棄、
 fault遷移などapplicationで定めた方針を実行する。
+
+## State Machine
+
+```c
+enum {
+    APP_STATE_IDLE = 1u,
+    APP_STATE_PRINTING = 2u,
+    APP_STATE_FAULT = 3u
+};
+
+enum {
+    APP_EVENT_START = 10u,
+    APP_EVENT_DONE = 11u,
+    APP_EVENT_ERROR = 12u
+};
+
+static void enter_printing(
+    ut_event_state_machine_t *machine,
+    const ut_event_t *event,
+    void *user_context)
+{
+    (void)machine;
+    (void)event;
+    (void)user_context;
+}
+
+static const ut_event_state_t states[] = {
+    {APP_STATE_IDLE, "idle", NULL, NULL, NULL},
+    {APP_STATE_PRINTING, "printing", enter_printing, NULL, NULL},
+    {APP_STATE_FAULT, "fault", NULL, NULL, NULL}
+};
+
+static const ut_event_state_transition_t transitions[] = {
+    {APP_STATE_IDLE, APP_EVENT_START, APP_STATE_PRINTING,
+        NULL, NULL, NULL, 0u, 1u},
+    {APP_STATE_PRINTING, APP_EVENT_DONE, APP_STATE_IDLE,
+        NULL, NULL, NULL, 0u, 2u},
+    {UT_EVENT_STATE_ID_ANY, APP_EVENT_ERROR, APP_STATE_FAULT,
+        NULL, NULL, NULL, 0u, 3u}
+};
+
+static ut_event_state_machine_t print_sm;
+
+void app_state_machine_init(void)
+{
+    (void)ut_event_state_machine_init(
+        &print_sm,
+        states,
+        sizeof(states) / sizeof(states[0]),
+        transitions,
+        sizeof(transitions) / sizeof(transitions[0]),
+        APP_STATE_IDLE,
+        2u,
+        NULL);
+}
+```
+
+Event LoopまたはDispatcher handlerから、入力Eventを渡す。
+
+```c
+static void on_state_machine_event(
+    const ut_event_t *event,
+    void *user_context)
+{
+    (void)ut_event_state_machine_dispatch(
+        (ut_event_state_machine_t *)user_context,
+        event,
+        NULL);
+}
+```
+
+この設計では、状態と遷移の一覧がCのtableとして見える。小規模なら`switch`でも十分だが、
+entry、exit、guard、traceが増えた時に処理順序がmoduleごとにばらつかない。遷移tableを
+単体テストやreviewの対象にできるため、長期保守ではtable-driven方式を標準形にする。
+
+## Event traceとLog連携
+
+```c
+#include "utility_event.h"
+
+static ut_event_trace_t event_trace;
+static ut_event_trace_log_config_t trace_log_config;
+
+void app_trace_init(ut_logger_t *logger)
+{
+    trace_log_config.logger = logger;
+    trace_log_config.module = "event";
+    trace_log_config.level = UT_LOG_LEVEL_TRACE;
+
+    (void)ut_event_trace_init(
+        &event_trace,
+        ut_event_trace_log_sink,
+        &trace_log_config);
+    (void)ut_event_subscribe(
+        &dispatcher,
+        UT_EVENT_ID_ANY,
+        ut_event_trace_dispatch_handler,
+        &event_trace);
+}
+```
+
+状態遷移を記録したいmoduleは、遷移が確定した後に次のように通知する。
+
+```c
+(void)ut_event_trace_state_transition(
+    &event_trace,
+    2u,
+    old_state,
+    new_state,
+    reason_code);
+```
+
+Trace APIはState Machine本体を所有しない。状態ID、理由code、出力先Loggerの寿命と
+並行アクセスはapplication側で定義する。
