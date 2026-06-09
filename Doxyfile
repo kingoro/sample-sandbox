@@ -8,12 +8,15 @@ INPUT                  = docs/c-api-main.md \
                          memory-buffer/tests \
                          Utility/event/include \
                          Utility/event/src \
+                         Utility/event/examples \
                          Utility/event/tests \
                          Utility/event/fuzz \
                          Utility/log/include \
                          Utility/log/src \
+                         Utility/log/examples \
                          Utility/log/tests \
-                         Utility/log/fuzz
+                         Utility/log/fuzz \
+                         src
 FILE_PATTERNS          = *.h *.c *.md
 RECURSIVE              = YES
 USE_MDFILE_AS_MAINPAGE = docs/c-api-main.md

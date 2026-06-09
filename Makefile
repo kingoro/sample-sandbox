@@ -1,4 +1,4 @@
-.PHONY: help check extended-check test utility-test utility-event-test utility-log-test docs rust-docs c-docs c-docs-check header header-check static-analysis utility-static-analysis utility-log-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-event-fuzz-smoke utility-log-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
+.PHONY: help check extended-check test utility-test utility-event-test utility-log-test utility-event-examples utility-log-examples unit-mock-sample domain-service-sample docs rust-docs c-docs c-docs-check header header-check static-analysis utility-static-analysis utility-log-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-event-fuzz-smoke utility-log-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
 
 BUILD_DIR ?= build/memory-buffer
 UTILITY_BUILD_DIR ?= build/utility-event
@@ -15,6 +15,10 @@ help:
 		'  utility-test     全C Utilityの単体テスト' \
 		'  utility-event-test Event UtilityのC単体テスト' \
 		'  utility-log-test Log UtilityのC単体テスト' \
+		'  utility-event-examples Event Utilityの3サンプルを実行' \
+		'  utility-log-examples Log Utilityの3サンプルを実行' \
+		'  unit-mock-sample 10個のMock Unit操作をbuildして実行' \
+		'  domain-service-sample A機能の階層Workflowをbuildして実行' \
 		'  static-analysis  Rust、C利用例、全C Utilityの静的解析' \
 		'  utility-static-analysis 全C UtilityのGCC静的解析' \
 		'  utility-log-static-analysis Log UtilityのGCC静的解析' \
@@ -93,6 +97,9 @@ utility-static-analysis: utility-log-static-analysis
 		-I Utility/event/include -c Utility/event/src/utility_event_metrics.c \
 		-o /tmp/utility_event_metrics_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -c Utility/event/src/utility_event_publisher.c \
+		-o /tmp/utility_event_publisher_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -c Utility/event/src/utility_event_state_machine.c \
 		-o /tmp/utility_event_state_machine_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
@@ -131,6 +138,10 @@ utility-static-analysis: utility-log-static-analysis
 		-o /tmp/utility_event_metrics_test_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_publisher.c \
+		-o /tmp/utility_event_publisher_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_state_machine.c \
 		-o /tmp/utility_event_state_machine_test_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
@@ -149,6 +160,18 @@ utility-static-analysis: utility-log-static-analysis
 		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_main.c \
 		-o /tmp/utility_event_main_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include \
+		-c Utility/event/examples/state_machine_dispatch.c \
+		-o /tmp/utility_event_state_machine_example_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include \
+		-c Utility/event/examples/scheduled_executor.c \
+		-o /tmp/utility_event_executor_example_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include \
+		-c Utility/event/examples/payload_lifecycle.c \
+		-o /tmp/utility_event_payload_example_analyzed.o
 
 utility-log-static-analysis:
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
@@ -169,6 +192,18 @@ utility-log-static-analysis:
 		-I Utility/log/include -I Utility/log/tests \
 		-c Utility/log/tests/test_utility_log_main.c \
 		-o /tmp/utility_log_main_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/log/include \
+		-c Utility/log/examples/basic_default_logger.c \
+		-o /tmp/utility_log_basic_example_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/log/include \
+		-c Utility/log/examples/ring_maintenance.c \
+		-o /tmp/utility_log_ring_example_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer -pthread \
+		-I Utility/log/include \
+		-c Utility/log/examples/thread_safe_logger.c \
+		-o /tmp/utility_log_threads_example_analyzed.o
 
 cppcheck:
 	cppcheck --enable=warning,style,performance,portability \
@@ -183,6 +218,7 @@ cppcheck:
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_executor.c \
 		Utility/event/src/utility_event_metrics.c \
+		Utility/event/src/utility_event_publisher.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
@@ -193,16 +229,23 @@ cppcheck:
 		Utility/event/tests/test_utility_event_dispatcher.c \
 		Utility/event/tests/test_utility_event_executor.c \
 		Utility/event/tests/test_utility_event_metrics.c \
+		Utility/event/tests/test_utility_event_publisher.c \
 		Utility/event/tests/test_utility_event_state_machine.c \
 		Utility/event/tests/test_utility_event_timer.c \
 		Utility/event/tests/test_utility_event_trace.c \
 		Utility/event/tests/test_utility_event_integration.c \
 		Utility/event/tests/test_utility_event_main.c \
+		Utility/event/examples/state_machine_dispatch.c \
+		Utility/event/examples/scheduled_executor.c \
+		Utility/event/examples/payload_lifecycle.c \
 		-I Utility/log/include Utility/log/src/utility_logger.c \
 		Utility/log/src/utility_log_console.c \
 		-I Utility/log/tests Utility/log/tests/test_utility_logger.c \
 		Utility/log/tests/test_utility_log_console.c \
-		Utility/log/tests/test_utility_log_main.c
+		Utility/log/tests/test_utility_log_main.c \
+		Utility/log/examples/basic_default_logger.c \
+		Utility/log/examples/ring_maintenance.c \
+		Utility/log/examples/thread_safe_logger.c
 
 miri:
 	cargo +$(NIGHTLY_TOOLCHAIN) miri test --lib
@@ -223,6 +266,7 @@ utility-event-fuzz-smoke:
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_executor.c \
 		Utility/event/src/utility_event_metrics.c \
+		Utility/event/src/utility_event_publisher.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
@@ -252,6 +296,7 @@ utility-fuzz:
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_executor.c \
 		Utility/event/src/utility_event_metrics.c \
+		Utility/event/src/utility_event_publisher.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
@@ -279,6 +324,7 @@ metrics:
 		Utility/event/src/utility_event_dispatcher.c \
 		Utility/event/src/utility_event_executor.c \
 		Utility/event/src/utility_event_metrics.c \
+		Utility/event/src/utility_event_publisher.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
@@ -314,6 +360,50 @@ utility-log-test:
 	cmake --build $(UTILITY_LOG_BUILD_DIR)
 	ctest --test-dir $(UTILITY_LOG_BUILD_DIR) --output-on-failure
 
+utility-event-examples:
+	cmake -S Utility/event -B $(UTILITY_BUILD_DIR)
+	cmake --build $(UTILITY_BUILD_DIR)
+	$(UTILITY_BUILD_DIR)/utility_event_example_state_machine
+	$(UTILITY_BUILD_DIR)/utility_event_example_executor
+	$(UTILITY_BUILD_DIR)/utility_event_example_payload
+
+utility-log-examples:
+	cmake -S Utility/log -B $(UTILITY_LOG_BUILD_DIR)
+	cmake --build $(UTILITY_LOG_BUILD_DIR)
+	$(UTILITY_LOG_BUILD_DIR)/utility_log_example_basic
+	$(UTILITY_LOG_BUILD_DIR)/utility_log_example_ring
+	$(UTILITY_LOG_BUILD_DIR)/utility_log_example_threads
+
+unit-mock-sample:
+	mkdir -p build/sample
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror \
+		-I src/unit -I Utility/log/include \
+		src/unit/unit_mock.c src/unit/unit_mock_sample.c \
+		Utility/log/src/utility_logger.c \
+		Utility/log/src/utility_log_console.c \
+		-pthread -o build/sample/unit_mock_sample
+	build/sample/unit_mock_sample
+
+domain-service-sample:
+	mkdir -p build/sample
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror \
+		-I src/domain -I src/unit \
+		-I Utility/event/include -I Utility/log/include \
+		src/domain/domain_event_publisher.c \
+		src/domain/domain_workflow.c \
+		src/domain/domain_service.c \
+		src/domain/domain_service_sample.c \
+		src/unit/unit_mock.c \
+		Utility/event/src/utility_event_publisher.c \
+		Utility/event/src/utility_event_queue.c \
+		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_state_machine.c \
+		Utility/event/src/utility_event_trace.c \
+		Utility/log/src/utility_logger.c \
+		Utility/log/src/utility_log_console.c \
+		-pthread -o build/sample/domain_service_sample
+	build/sample/domain_service_sample
+
 docs: rust-docs c-docs
 
 rust-docs:
@@ -329,7 +419,9 @@ c-docs-check:
 		Utility/event/include/*.h \
 		Utility/event/tests/*.h \
 		Utility/log/include/*.h \
-		Utility/log/tests/*.h
+		Utility/log/tests/*.h \
+		src/unit/*.h \
+		src/domain/*.h
 
 docker-ready:
 	@docker version >/dev/null 2>&1 || { \

@@ -81,6 +81,28 @@ handler実行中の登録変更と再帰dispatchは拒否する。handlerは短�
 実装は`src/utility_event_dispatcher.c`へ分離し、Queueへ依存しない。Event Loopは
 Queueから取り出したEventをDispatcherへ渡す利用側の構成要素である。
 
+## 値copy Publisher
+
+小さな完了通知や状態変更payloadを別threadからEvent Loopへ渡す場合、通常Queueの
+非所有payload参照だけでは発行元stackの寿命を保証できない。Publisherは呼出側提供の
+固定長payload slotへ値copyし、QueueとDispatcherを一つの実行経路として接続する。
+
+```text
+Producer
+  -> publish_copy
+  -> payload slot + Event Queue
+  -> dispatch
+  -> Dispatcher handler
+  -> payload slot release
+```
+
+Publisher自体はthread、Mutex、heapを所有しない。複数producerからpublishする場合は
+利用側がlock/unlock callbackを設定する。dispatchは単一実行主体から呼び、handlerは
+同期実行される。handler中の再publishは許可するが、dispatchの再入は拒否する。
+
+payload storageは利用側が扱うpayload型に必要なalignmentを持たせる。大きな可変長
+データやcopyを避けたいデータにはPublisherではなくBuffer Pool所有Envelopeを使う。
+
 ## Event Contract Registry
 
 Event ID、payload size範囲、所有方式を不変tableへ集約する。Registryはtableをcopyせず、
@@ -179,6 +201,7 @@ State Machineからの自動通知までとする。永続化、通信送信、U
 ## 呼出側の責務
 
 - QueueとDispatcherへの並行アクセスを必要に応じて直列化する
+- Publisherのpayload storageへ利用型に必要なalignmentを持たせる
 - ISRから利用する場合は対象環境に合わせた排他または専用adapterを用意する
 - payload参照を処理完了まで有効に保つ
 - Queue満杯時の再試行、破棄、fault化方針を決める

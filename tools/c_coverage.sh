@@ -32,6 +32,7 @@ event_sources=(
     Utility/event/src/utility_event_dispatcher.c
     Utility/event/src/utility_event_executor.c
     Utility/event/src/utility_event_metrics.c
+    Utility/event/src/utility_event_publisher.c
     Utility/event/src/utility_event_state_machine.c
     Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c
@@ -44,6 +45,7 @@ event_sources=(
     Utility/event/tests/test_utility_event_dispatcher.c
     Utility/event/tests/test_utility_event_executor.c
     Utility/event/tests/test_utility_event_metrics.c
+    Utility/event/tests/test_utility_event_publisher.c
     Utility/event/tests/test_utility_event_state_machine.c
     Utility/event/tests/test_utility_event_timer.c
     Utility/event/tests/test_utility_event_trace.c
@@ -65,6 +67,7 @@ event_integration_sources=(
     Utility/event/src/utility_event_dispatcher.c
     Utility/event/src/utility_event_executor.c
     Utility/event/src/utility_event_metrics.c
+    Utility/event/src/utility_event_publisher.c
     Utility/event/src/utility_event_state_machine.c
     Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c
@@ -117,6 +120,7 @@ production_sources=(
     Utility/event/src/utility_event_dispatcher.c
     Utility/event/src/utility_event_executor.c
     Utility/event/src/utility_event_metrics.c
+    Utility/event/src/utility_event_publisher.c
     Utility/event/src/utility_event_state_machine.c
     Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c

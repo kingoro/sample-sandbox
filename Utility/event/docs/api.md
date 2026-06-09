@@ -15,6 +15,7 @@ QueueまたはDispatcherだけを利用するmoduleは、対応する個別heade
 | `utility_event_dispatcher.h` | handler登録と同期配送 |
 | `utility_event_executor.h` | Timer、契約検証、同期配送の実行step |
 | `utility_event_metrics.h` | Event処理Metrics |
+| `utility_event_publisher.h` | payload値copy、Queue、Dispatcher統合 |
 | `utility_event_state_machine.h` | table-driven State Machine |
 | `utility_event_timer.h` | 外部tick駆動Timer Scheduler |
 | `utility_event_trace.h` | Event・状態遷移trace record生成 |
@@ -110,6 +111,20 @@ Contract違反EventはQueueから除去して配送しない。購読先なし�
 | `ut_event_queue_clear` | 全Eventを破棄 |
 | `ut_event_queue_count` | 現在件数を取得 |
 | `ut_event_queue_capacity` | 最大件数を取得 |
+
+## Publisher API
+
+| API | 動作 |
+| --- | --- |
+| `ut_event_publisher_init` | 呼出側storageと任意の排他callbackで初期化 |
+| `ut_event_publisher_subscribe` | 内部Dispatcherへhandlerを登録 |
+| `ut_event_publisher_publish_copy` | payloadを固定長slotへcopyしてQueueへ発行 |
+| `ut_event_publisher_dispatch` | budget件まで同期配送してpayload slotを解放 |
+| `ut_event_publisher_count` | 未配送Event件数を取得 |
+
+Publisherはpayloadを値copyするため、成功後はcopy元の寿命に依存しない。配送handlerが
+payloadを構造体pointerとして参照する場合、payload storageにはその型が要求する
+alignmentを持たせる。handler callback終了後にpayload pointerを保持してはならない。
 
 ## Dispatcher API
 

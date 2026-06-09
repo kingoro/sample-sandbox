@@ -48,6 +48,13 @@ int run_utility_event_executor_tests(void);
 int run_utility_event_metrics_tests(void);
 
 /**
+ * payload値copy Event Publisherの単体テストをすべて実行する。
+ *
+ * @return 全テスト成功時は0、失敗時は1。
+ */
+int run_utility_event_publisher_tests(void);
+
+/**
  * Event State Machineの単体テストをすべて実行する。
  *
  * @return 全テスト成功時は0、失敗時は1。

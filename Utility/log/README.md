@@ -27,6 +27,7 @@ Log UtilityはRecordを生成・蓄積・読出しするところまでを担当
 
 ## 資料
 
+- [実行可能サンプル3パターン](examples/README.md)
 - [初心者向け はじめてのLog Utility](README_BEGINNER.md)
 - [構成と責務](docs/architecture.md)
 - [API仕様](docs/api.md)
@@ -39,6 +40,7 @@ repository rootで実行する。
 
 ```sh
 make utility-log-test
+make utility-log-examples
 make utility-log-static-analysis
 make utility-log-fuzz-smoke
 make check

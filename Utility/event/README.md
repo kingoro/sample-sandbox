@@ -12,6 +12,7 @@ Cでイベント駆動処理を構成するための、ドメイン非依存の�
 - Event IDとpayload条件を一元検証するContract Registry
 - Timer、契約検証、同期配送をbudget付きで進めるEvent Executor
 - Queue使用量、配送結果、Timer詰まりを収集する飽和Metrics
+- payloadを固定長slotへ値copyし、QueueとDispatcherを統合するPublisher
 - Buffer Pool handleをEventと一緒にmoveする所有Envelope Queue
 - Event履歴と状態遷移履歴を外部sinkへ通知するtrace hook
 - trace recordをLog Utilityへ出力するadapter
@@ -33,6 +34,7 @@ Cでイベント駆動処理を構成するための、ドメイン非依存の�
 | Event Contract | 実装済み | ID、payload size、所有方式の一元定義と検証 |
 | Event Executor | 実装済み | Timer処理、Contract検証、budget付き同期配送 |
 | Metrics | 実装済み | Queue high-water mark、満杯、配送、拒否、Timer観測 |
+| 値copy Publisher | 実装済み | 固定長payload所有、複数producer publish、budget同期配送 |
 | Buffer Pool連携 | 実装済み | callback抽象、所有Envelope、move Queue、明示release |
 | ログ・状態遷移trace | 実装済み | Event trace hook、State Machine自動遷移trace、Log Utility adapter |
 
@@ -59,6 +61,9 @@ utility_event.h
 │   └── utility_event_timer.h
 ├── utility_event_metrics.h
 │   └── utility_event_result.h
+├── utility_event_publisher.h
+│   ├── utility_event_queue.h
+│   └── utility_event_dispatcher.h
 ├── utility_event_queue.h
 │   ├── utility_event_types.h
 │   └── utility_event_result.h
@@ -285,6 +290,62 @@ ut_event_result_t result = ut_event_queue_push(&event_queue, &event);
 snapshotは値copyで取得できる。Metricsはlockを持たないため、複数実行主体から更新する
 場合は利用側で直列化する。
 
+## 値copy Publisherの使い方
+
+worker threadなどで生成した小さなpayloadを、発行元stackの寿命から切り離して
+Event Loopへ渡す場合は`ut_event_publisher_t`を使用する。
+
+PublisherはheapやMutexを所有しない。Event、payload、使用flag、subscriptionのstorageと
+任意のlock callbackを利用側が提供する。publishはpayloadを固定長slotへcopyし、
+dispatchは内部QueueからEventを取り出してDispatcherへ同期配送する。
+
+```c
+static ut_event_publisher_t publisher;
+static ut_event_t event_storage[8];
+static app_event_payload_t payload_storage[8];
+static uint8_t occupied_storage[8];
+static ut_event_subscription_t subscriptions[4];
+
+void app_publisher_init(void)
+{
+    (void)ut_event_publisher_init(
+        &publisher,
+        event_storage,
+        (uint8_t *)payload_storage,
+        occupied_storage,
+        8u,
+        sizeof(payload_storage[0]),
+        subscriptions,
+        4u,
+        app_lock,
+        app_unlock,
+        &app_mutex);
+}
+```
+
+producerはcopy元の寿命を気にせず発行できる。
+
+```c
+app_event_payload_t payload = {.request_id = request_id};
+
+(void)ut_event_publisher_publish_copy(
+    &publisher,
+    APP_EVENT_COMPLETED,
+    APP_SOURCE_WORKER,
+    &payload,
+    sizeof(payload));
+```
+
+単一のEvent Loopからbudget付きで配送する。
+
+```c
+(void)ut_event_publisher_dispatch(&publisher, 8u, NULL);
+```
+
+handler実行中もpayload slotは所有状態を維持するため、handlerはcallback中にpayloadを
+安全に参照できる。handlerから新しいEventをpublishでき、budget内なら同じdispatchで
+続けて処理される。payloadをcallback後まで保持してはならない。
+
 ## Buffer Pool連携の使い方
 
 大きなpayloadは通常の`ut_event_queue_t`へpointerだけを積まず、Buffer Poolへ格納して
@@ -345,6 +406,7 @@ if (ut_event_buffer_queue_pop_move(
 
 ## 資料
 
+- [実行可能サンプル3パターン](examples/README.md)
 - [初心者向け はじめてのEvent Utility](README_BEGINNER.md)
 - [構成と責務](docs/architecture.md)
 - [API仕様](docs/api.md)
@@ -357,6 +419,7 @@ repository rootで実行する。
 
 ```sh
 make utility-event-test
+make utility-event-examples
 make utility-static-analysis
 make utility-event-fuzz-smoke
 ```

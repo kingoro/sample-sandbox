@@ -12,6 +12,7 @@
 #include "utility_event_dispatcher.h"
 #include "utility_event_executor.h"
 #include "utility_event_metrics.h"
+#include "utility_event_publisher.h"
 #include "utility_event_queue.h"
 #include "utility_event_state_machine.h"
 #include "utility_event_timer.h"
