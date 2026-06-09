@@ -19,6 +19,11 @@ make utility-test
 - State Machineのguard、action、entry、exit、trace、再入拒否
 - Timerのone-shot、periodic、restart、cancel、最短deadline
 - periodic遅延時のcoalesce、Queue満杯時の再試行、uint64_t境界
+- Buffer Envelopeのcreate、move、read、release、release-all
+- Queue満杯・free失敗時の所有権維持と二重所有防止
+- Contract table重複、不正size、未登録Event、payload違反
+- Executorのbudget、未購読、Contract拒否、再入拒否、Timer満杯再試行
+- Metricsのhigh-water mark、snapshot、reset、counter飽和
 - NULL、容量0、未初期化context
 
 結合テスト`utility_event_integration`では、次の製品利用に近い経路を一つの
@@ -27,15 +32,22 @@ make utility-test
 ```text
 Timer Scheduler
     -> Event Queue
+    -> Contract Registry
+    -> Event Executor
     -> Dispatcher
     -> State Machine
     -> Event・状態遷移Trace
     -> Log Utility RAM Ring
+    -> Metrics snapshot
 ```
 
 シナリオは`IDLE -> RUNNING -> Timer timeout -> FAULT -> IDLE`を通り、途中に
 遷移対象外Eventを含める。最終状態、entry/action呼出回数、Timer消費、Event履歴、
 状態遷移履歴を検証する。
+
+`memory_buffer_event_integration`では実際のRust/C Memory Buffer ABIと
+Buffer Envelopeを接続し、alloc/write、Queue move、Dispatcher handler read、
+release、stale handle拒否までを検証する。
 
 通常の完了条件:
 
@@ -87,6 +99,9 @@ APIに加えてTimer APIをランダムな順序で実行する。次の不変�
 - subscription件数がcapacityを超えない
 - dispatchの戻り値と実行handler数が矛盾しない
 - Timer active件数がslot状態と一致しcapacityを超えない
+- Buffer handle数がproducer、Queue、consumerの所有数合計と一致する
+- Executor Queue件数とhigh-water markがcapacityを超えない
+- Contract違反EventをExecutorがhandlerへ配送しない
 - ASan／UBSanが範囲外access、use-after-free、整数UBを報告しない
 
 短時間検査はGCCでも実行できる。

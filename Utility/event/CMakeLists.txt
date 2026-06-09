@@ -4,16 +4,24 @@ include(CTest)
 
 add_executable(
     utility_event_tests
+    src/utility_event_buffer.c
+    src/utility_event_contract.c
     src/utility_event_queue.c
     src/utility_event_dispatcher.c
+    src/utility_event_executor.c
+    src/utility_event_metrics.c
     src/utility_event_state_machine.c
     src/utility_event_timer.c
     src/utility_event_trace.c
     src/utility_event_trace_log.c
     ../log/src/utility_logger.c
     ../log/src/utility_log_console.c
+    tests/test_utility_event_buffer.c
+    tests/test_utility_event_contract.c
     tests/test_utility_event_queue.c
     tests/test_utility_event_dispatcher.c
+    tests/test_utility_event_executor.c
+    tests/test_utility_event_metrics.c
     tests/test_utility_event_state_machine.c
     tests/test_utility_event_timer.c
     tests/test_utility_event_trace.c
@@ -34,8 +42,12 @@ add_test(NAME utility_event_unit COMMAND utility_event_tests)
 
 add_executable(
     utility_event_integration_tests
+    src/utility_event_buffer.c
+    src/utility_event_contract.c
     src/utility_event_queue.c
     src/utility_event_dispatcher.c
+    src/utility_event_executor.c
+    src/utility_event_metrics.c
     src/utility_event_state_machine.c
     src/utility_event_timer.c
     src/utility_event_trace.c

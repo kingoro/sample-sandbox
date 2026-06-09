@@ -80,6 +80,17 @@ TIMEOUT          -> timeout_handler
 handlerは`ut_event_dispatch`を呼び出したthread上で、その場で実行される。
 新しいthreadは作成されない。
 
+### Executor、Contract、Metrics
+
+ExecutorはQueue、Timer、Dispatcherを決めた順番で1 stepだけ進める。threadではなく、
+main loopやRTOS taskから呼び出す関数である。1回の処理件数をbudgetで制限できる。
+
+Contractは「Event ID 1にはpayloadなし」「Event ID 2には4 byte必要」のような約束を
+tableへまとめ、handlerへ渡す前に間違いを検出する。
+
+MetricsはQueueが最大何件まで溜まったか、満杯、配送、未購読、契約違反が何回起きたかを
+counterとして保持する。出力や通信は行わず、必要な時にsnapshotを取得する。
+
 ## 印刷データ本体との違い
 
 Event Queueは印刷データ本体を保存するリングバッファではない。
@@ -220,11 +231,12 @@ handlerはEventを受け取り、自moduleの状態更新や次の短い処理�
 ## 現在まだない機能
 
 このUtilityに現在含まれるのはEvent、Queue、Dispatcher、State Machine、
-Timer Event、Event・状態遷移traceのrecord化とLog Utility adapterである。
+Timer Event、Buffer Pool所有権連携、Event・状態遷移traceのrecord化と
+Log Utility adapterである。
 
-- Buffer Poolとの所有権連携
-
-Buffer Pool連携は未実装であり、必要な契約を定めてから責務別ファイルとして追加する。
+大きなpayloadは`ut_event_buffer_message_t`へPool handleと一緒に格納し、
+`ut_event_buffer_queue_push_move`と`ut_event_buffer_queue_pop_move`で所有権を移す。
+consumerは処理後に`ut_event_buffer_message_release`を呼ぶ。
 
 ## 検証方法
 

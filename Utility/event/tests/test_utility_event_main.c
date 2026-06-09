@@ -12,8 +12,12 @@
  */
 int main(void)
 {
+    CHECK(run_utility_event_buffer_tests() == 0);
+    CHECK(run_utility_event_contract_tests() == 0);
     CHECK(run_utility_event_queue_tests() == 0);
     CHECK(run_utility_event_dispatcher_tests() == 0);
+    CHECK(run_utility_event_executor_tests() == 0);
+    CHECK(run_utility_event_metrics_tests() == 0);
     CHECK(run_utility_event_state_machine_tests() == 0);
     CHECK(run_utility_event_timer_tests() == 0);
     CHECK(run_utility_event_trace_tests() == 0);

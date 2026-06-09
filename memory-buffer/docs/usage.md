@@ -99,6 +99,19 @@ if (mb_map(&buffer_context, handle, &data, &capacity) == MB_OK) {
 ```
 
 map pointerは所有権の移譲ではない。`mb_unmap`後に保存・参照してはならない。
+
+## Event Utilityへ接続する
+
+```c
+#include "memory_buffer_event_adapter.h"
+
+ut_event_buffer_pool_t event_pool =
+    mb_event_buffer_pool(&context);
+```
+
+`event_pool`を`ut_event_buffer_message_create_copy`へ渡すと、Memory Buffer handleを
+所有するEvent Envelopeを作成できる。EnvelopeをQueueから取り出したconsumerは、
+処理後に`ut_event_buffer_message_release`でhandleを返却する。
 非同期処理へpointerを渡した場合も、その処理が完全に終了してからunmapする。
 
 ## Buffer情報を取得する

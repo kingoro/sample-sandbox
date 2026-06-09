@@ -30,4 +30,29 @@ add_executable(memory_buffer_c_example examples/c_usage.c)
 target_include_directories(memory_buffer_c_example PRIVATE include)
 target_link_libraries(memory_buffer_c_example PRIVATE memory_buffer pthread dl m)
 
+add_executable(
+    memory_buffer_event_integration
+    tests/test_event_buffer_integration.c
+    src/memory_buffer_event_adapter.c
+    ../Utility/event/src/utility_event_buffer.c
+    ../Utility/event/src/utility_event_dispatcher.c)
+target_include_directories(
+    memory_buffer_event_integration
+    PRIVATE
+        include
+        ../Utility/event/include)
+target_compile_features(memory_buffer_event_integration PRIVATE c_std_11)
+target_link_libraries(
+    memory_buffer_event_integration
+    PRIVATE memory_buffer pthread dl m)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        memory_buffer_event_integration
+        PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 add_test(NAME memory_buffer_c_integration COMMAND memory_buffer_c_example)
+add_test(
+    NAME memory_buffer_event_integration
+    COMMAND memory_buffer_event_integration)

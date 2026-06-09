@@ -165,29 +165,6 @@ static int log_contains(ut_logger_t *logger, const char *text)
 }
 
 /**
- * Event列をQueueからDispatcherへ配送する。
- *
- * @param queue Event入力Queue。
- * @param dispatcher 配送先Dispatcher。
- * @return 全Eventを配送できた場合0、それ以外は1。
- */
-static int drain_event_queue(
-    ut_event_queue_t *queue,
-    ut_event_dispatcher_t *dispatcher)
-{
-    ut_event_t event;
-
-    while (ut_event_queue_pop(queue, &event) == UT_EVENT_OK) {
-        size_t handler_count = 0u;
-
-        CHECK(ut_event_dispatch(dispatcher, &event, &handler_count) ==
-            UT_EVENT_OK);
-        CHECK(handler_count == 2u);
-    }
-    return 0;
-}
-
-/**
  * IDLEからRUNNING、FAULTを経てIDLEへ戻る結合シナリオを検証する。
  *
  * @return 成功時は0、失敗時は1。
@@ -203,6 +180,10 @@ static int test_operational_fault_recovery_scenario(void)
     ut_event_state_machine_t machine;
     ut_event_timer_scheduler_t timer_scheduler;
     ut_event_timer_slot_t timer_storage[INTEGRATION_TIMER_CAPACITY];
+    ut_event_contract_registry_t contract_registry;
+    ut_event_metrics_t metrics;
+    ut_event_executor_t executor;
+    ut_event_executor_report_t executor_report;
     ut_event_trace_t state_trace;
     ut_event_trace_t event_trace;
     ut_logger_t logger;
@@ -286,7 +267,36 @@ static int test_operational_fault_recovery_scenario(void)
         NULL,
         0u
     };
-    size_t emitted_count = 0u;
+    const ut_event_contract_t contracts[] = {
+        {
+            INTEGRATION_EVENT_START,
+            "start",
+            0u,
+            0u,
+            UT_EVENT_PAYLOAD_NONE
+        },
+        {
+            INTEGRATION_EVENT_DIAGNOSTIC,
+            "diagnostic",
+            0u,
+            0u,
+            UT_EVENT_PAYLOAD_NONE
+        },
+        {
+            INTEGRATION_EVENT_ERROR,
+            "error",
+            0u,
+            0u,
+            UT_EVENT_PAYLOAD_NONE
+        },
+        {
+            INTEGRATION_EVENT_RESET,
+            "reset",
+            0u,
+            0u,
+            UT_EVENT_PAYLOAD_NONE
+        }
+    };
     size_t index;
 
     CHECK(ut_event_queue_init(
@@ -301,6 +311,18 @@ static int test_operational_fault_recovery_scenario(void)
         &timer_scheduler,
         timer_storage,
         INTEGRATION_TIMER_CAPACITY) == UT_EVENT_OK);
+    CHECK(ut_event_contract_registry_init(
+        &contract_registry,
+        contracts,
+        sizeof(contracts) / sizeof(contracts[0])) == UT_EVENT_OK);
+    CHECK(ut_event_metrics_init(&metrics) == UT_EVENT_OK);
+    CHECK(ut_event_executor_init(
+        &executor,
+        &queue,
+        &dispatcher,
+        &timer_scheduler,
+        &contract_registry,
+        &metrics) == UT_EVENT_OK);
     CHECK(ut_logger_init(
         &logger,
         log_storage,
@@ -343,11 +365,22 @@ static int test_operational_fault_recovery_scenario(void)
 
     for (index = 0u;
          index < (sizeof(initial_events) / sizeof(initial_events[0]));
-         index++) {
-        CHECK(ut_event_queue_push(&queue, &initial_events[index]) ==
-            UT_EVENT_OK);
+        index++) {
+        const ut_event_result_t publish_result =
+            ut_event_queue_push(&queue, &initial_events[index]);
+
+        CHECK(publish_result == UT_EVENT_OK);
+        CHECK(ut_event_metrics_record_publish(
+            &metrics,
+            publish_result,
+            ut_event_queue_count(&queue)) == UT_EVENT_OK);
     }
-    CHECK(drain_event_queue(&queue, &dispatcher) == 0);
+    CHECK(ut_event_executor_run_once(
+        &executor,
+        100u,
+        INTEGRATION_QUEUE_CAPACITY,
+        &executor_report) == UT_EVENT_OK);
+    CHECK(executor_report.dispatched_count == 2u);
     CHECK(ut_event_state_machine_current_state(&machine) ==
         INTEGRATION_STATE_RUNNING);
 
@@ -358,24 +391,38 @@ static int test_operational_fault_recovery_scenario(void)
         100u,
         50u,
         0u) == UT_EVENT_OK);
-    CHECK(ut_event_timer_process(
-        &timer_scheduler,
+    CHECK(ut_event_executor_run_once(
+        &executor,
         149u,
-        &queue,
-        &emitted_count) == UT_EVENT_OK);
-    CHECK(emitted_count == 0u);
-    CHECK(ut_event_timer_process(
-        &timer_scheduler,
+        INTEGRATION_QUEUE_CAPACITY,
+        &executor_report) == UT_EVENT_OK);
+    CHECK(executor_report.timer_emitted_count == 0u);
+    CHECK(ut_event_executor_run_once(
+        &executor,
         150u,
-        &queue,
-        &emitted_count) == UT_EVENT_OK);
-    CHECK(emitted_count == 1u);
-    CHECK(drain_event_queue(&queue, &dispatcher) == 0);
+        INTEGRATION_QUEUE_CAPACITY,
+        &executor_report) == UT_EVENT_OK);
+    CHECK(executor_report.timer_emitted_count == 1u);
+    CHECK(executor_report.dispatched_count == 1u);
     CHECK(ut_event_state_machine_current_state(&machine) ==
         INTEGRATION_STATE_FAULT);
 
-    CHECK(ut_event_queue_push(&queue, &reset_event) == UT_EVENT_OK);
-    CHECK(drain_event_queue(&queue, &dispatcher) == 0);
+    {
+        const ut_event_result_t publish_result =
+            ut_event_queue_push(&queue, &reset_event);
+
+        CHECK(publish_result == UT_EVENT_OK);
+        CHECK(ut_event_metrics_record_publish(
+            &metrics,
+            publish_result,
+            ut_event_queue_count(&queue)) == UT_EVENT_OK);
+    }
+    CHECK(ut_event_executor_run_once(
+        &executor,
+        150u,
+        INTEGRATION_QUEUE_CAPACITY,
+        &executor_report) == UT_EVENT_OK);
+    CHECK(executor_report.dispatched_count == 1u);
 
     CHECK(ut_event_queue_count(&queue) == 0u);
     CHECK(ut_event_timer_count(&timer_scheduler) == 0u);
@@ -387,6 +434,12 @@ static int test_operational_fault_recovery_scenario(void)
     CHECK(context.reset_action_count == 1u);
     CHECK(ut_event_state_machine_current_state(&machine) ==
         INTEGRATION_STATE_IDLE);
+    CHECK(metrics.published_count == 4u);
+    CHECK(metrics.dequeued_count == 4u);
+    CHECK(metrics.dispatched_count == 4u);
+    CHECK(metrics.timer_emitted_count == 1u);
+    CHECK(metrics.executor_run_count == 4u);
+    CHECK(metrics.queue_high_watermark == 2u);
 
     CHECK(ut_logger_count(&logger) == 7u);
     CHECK(log_contains(&logger, "event id=10") != 0);

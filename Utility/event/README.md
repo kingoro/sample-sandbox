@@ -9,6 +9,10 @@ Cでイベント駆動処理を構成するための、ドメイン非依存の�
 - Event IDに応じてhandlerを同期実行するDispatcher
 - Event IDで駆動するtable-driven State Machine
 - 外部の単調tickでone-shot/periodic Eventを発行するTimer Scheduler
+- Event IDとpayload条件を一元検証するContract Registry
+- Timer、契約検証、同期配送をbudget付きで進めるEvent Executor
+- Queue使用量、配送結果、Timer詰まりを収集する飽和Metrics
+- Buffer Pool handleをEventと一緒にmoveする所有Envelope Queue
 - Event履歴と状態遷移履歴を外部sinkへ通知するtrace hook
 - trace recordをLog Utilityへ出力するadapter
 - heap、RTOS、thread、I/Oへ依存しないC11実装
@@ -26,10 +30,14 @@ Cでイベント駆動処理を構成するための、ドメイン非依存の�
 | Dispatcher | 実装済み | Event IDによる同期配送 |
 | State Machine | 実装済み | 状態table、遷移table、guard、action、entry/exit処理 |
 | Timer Event | 実装済み | 外部tick、one-shot/periodic、restart/cancel、Queue発行 |
-| Buffer Pool連携 | 未実装 | handle所有権移譲、解放規則 |
+| Event Contract | 実装済み | ID、payload size、所有方式の一元定義と検証 |
+| Event Executor | 実装済み | Timer処理、Contract検証、budget付き同期配送 |
+| Metrics | 実装済み | Queue high-water mark、満杯、配送、拒否、Timer観測 |
+| Buffer Pool連携 | 実装済み | callback抽象、所有Envelope、move Queue、明示release |
 | ログ・状態遷移trace | 実装済み | Event trace hook、State Machine自動遷移trace、Log Utility adapter |
 
-Buffer Pool連携は、Buffer Pool APIと所有権契約を定めてから責務別に追加する。
+イベント駆動基盤の主要構成要素は実装済みである。hardware/OS adapterと製品固有の
+Event ID、payload schema、排他方針は利用側で定義する。
 
 ## Header構成
 
@@ -37,6 +45,20 @@ Buffer Pool連携は、Buffer Pool APIと所有権契約を定めてから責務
 
 ```text
 utility_event.h
+├── utility_event_buffer.h
+│   ├── utility_event_types.h
+│   └── utility_event_result.h
+├── utility_event_contract.h
+│   ├── utility_event_types.h
+│   └── utility_event_result.h
+├── utility_event_executor.h
+│   ├── utility_event_contract.h
+│   ├── utility_event_dispatcher.h
+│   ├── utility_event_metrics.h
+│   ├── utility_event_queue.h
+│   └── utility_event_timer.h
+├── utility_event_metrics.h
+│   └── utility_event_result.h
 ├── utility_event_queue.h
 │   ├── utility_event_types.h
 │   └── utility_event_result.h
@@ -192,6 +214,134 @@ Event loopで期限到達TimerをQueueへ発行する。
 `period`を0より大きくするとperiodic Timerになる。処理が遅れて複数周期を通過しても
 過去回数分をburst発行せず、1 Eventだけ発行して次の未来deadlineへ進む。Queue満杯時は
 Timerをactiveなまま残すため、Queueを処理した後に再実行できる。
+
+## Contract、Executor、Metricsの使い方
+
+Event IDごとのpayload条件をtableとして一元定義する。
+
+```c
+static const ut_event_contract_t event_contracts[] = {
+    {APP_EVENT_START, "start", 0u, 0u, UT_EVENT_PAYLOAD_NONE},
+    {
+        APP_EVENT_DATA_READY,
+        "data-ready",
+        sizeof(app_data_ref_t),
+        sizeof(app_data_ref_t),
+        UT_EVENT_PAYLOAD_BORROWED
+    }
+};
+
+static ut_event_contract_registry_t contract_registry;
+static ut_event_metrics_t event_metrics;
+static ut_event_executor_t event_executor;
+
+void app_event_runtime_init(void)
+{
+    (void)ut_event_contract_registry_init(
+        &contract_registry,
+        event_contracts,
+        sizeof(event_contracts) / sizeof(event_contracts[0]));
+    (void)ut_event_metrics_init(&event_metrics);
+    (void)ut_event_executor_init(
+        &event_executor,
+        &event_queue,
+        &dispatcher,
+        &timer_scheduler,
+        &contract_registry,
+        &event_metrics);
+}
+```
+
+main loopやRTOS taskから、1回に処理する最大Event数を指定して進める。
+
+```c
+void app_event_loop_step(uint64_t now_ticks)
+{
+    ut_event_executor_report_t report;
+
+    (void)ut_event_executor_run_once(
+        &event_executor,
+        now_ticks,
+        8u,
+        &report);
+}
+```
+
+Executorはthreadやsleepを生成しない。`run_once`を呼んだ実行context上で、Timer発行、
+Contract検証、Dispatcherの同期handler実行を行う。budget到達時にQueueが残っていれば
+`report.budget_exhausted`とMetricsへ記録し、呼出側が次回実行時期を決める。
+
+Applicationが直接QueueへEventを発行した場合は、その結果をMetricsへ通知する。
+
+```c
+ut_event_result_t result = ut_event_queue_push(&event_queue, &event);
+
+(void)ut_event_metrics_record_publish(
+    &event_metrics,
+    result,
+    ut_event_queue_count(&event_queue));
+```
+
+snapshotは値copyで取得できる。Metricsはlockを持たないため、複数実行主体から更新する
+場合は利用側で直列化する。
+
+## Buffer Pool連携の使い方
+
+大きなpayloadは通常の`ut_event_queue_t`へpointerだけを積まず、Buffer Poolへ格納して
+`ut_event_buffer_message_t`でhandle所有権を運ぶ。
+
+```c
+static ut_event_buffer_message_t buffer_queue_storage[4];
+static ut_event_buffer_queue_t buffer_queue;
+
+void app_buffer_event_init(void)
+{
+    (void)ut_event_buffer_queue_init(
+        &buffer_queue,
+        buffer_queue_storage,
+        sizeof(buffer_queue_storage) / sizeof(buffer_queue_storage[0]));
+}
+```
+
+producerはPool callback tableを指定してpayloadを作り、Queueへmoveする。
+
+```c
+ut_event_buffer_message_t message = {0};
+
+if (ut_event_buffer_message_create_copy(
+        &message,
+        &buffer_pool,
+        APP_EVENT_DATA_READY,
+        2u,
+        data,
+        data_size) == UT_EVENT_OK) {
+    if (ut_event_buffer_queue_push_move(
+            &buffer_queue,
+            &message) != UT_EVENT_OK) {
+        (void)ut_event_buffer_message_release(&message);
+    }
+}
+```
+
+push成功時はQueueが所有者になり、失敗時はproducerが所有権を維持する。consumerは
+popで所有権を受け取り、同期dispatch完了後にreleaseする。
+
+```c
+ut_event_buffer_message_t received = {0};
+
+if (ut_event_buffer_queue_pop_move(
+        &buffer_queue,
+        &received) == UT_EVENT_OK) {
+    (void)ut_event_dispatch(
+        &dispatcher,
+        ut_event_buffer_message_event(&received),
+        NULL);
+    (void)ut_event_buffer_message_release(&received);
+}
+```
+
+`buffer_pool`はalloc/free/read/write callbackを持つ抽象tableであり、既存の
+`memory-buffer`、RTOS Memory Pool、製品固有Poolへ接続できる。
 
 ## 資料
 

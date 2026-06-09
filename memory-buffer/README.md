@@ -61,6 +61,15 @@ ABIは内部lockを持たない。contextは1つの実行主体が所有する�
 `mb_unmap`より前に、貸し出したpointerを参照する処理がすべて終了したことを
 呼出側が保証する。
 
+## Event Utility連携
+
+`Utility/event`の`ut_event_buffer_pool_t` callbackへ`mb_alloc`、`mb_free`、
+`mb_write`、`mb_read`を接続すると、payload本体をcopyせず世代付きhandleの所有権を
+Event Queue経由で移譲できる。
+
+`memory_buffer_event_integration`テストでは、alloc/write、Envelope Queueへのmove、
+Dispatcher handlerからのread、release、release後のstale handle拒否までを検証する。
+
 ## 異常時の方針
 
 想定内の異常はすべて`mb_result_t`で返す。無効なhandleや範囲外アクセスで

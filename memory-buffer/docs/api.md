@@ -68,6 +68,14 @@ stateDiagram-v2
 
 ## API一覧
 
+### Event Utility adapter
+
+`memory_buffer_event_adapter.h`の`mb_event_buffer_pool`は、初期化済み
+`mb_context_t`をEvent Utilityの`ut_event_buffer_pool_t`へ接続する。
+
+adapterはcontextを所有しない。adapter経由で作成した全Envelopeがreleaseされるまで、
+contextとarenaを有効に保つ。同じcontextへの並行accessは呼出側が直列化する。
+
 ### `mb_init`
 
 contextを初期化し、arenaと関連付ける。未初期化storageへ使用できる。

@@ -3,7 +3,9 @@ PROJECT_BRIEF          = "Memory Buffer, Event and Log Utility specifications"
 OUTPUT_DIRECTORY       = build/docs/c-api
 INPUT                  = docs/c-api-main.md \
                          memory-buffer/include \
+                         memory-buffer/src \
                          memory-buffer/examples \
+                         memory-buffer/tests \
                          Utility/event/include \
                          Utility/event/src \
                          Utility/event/tests \

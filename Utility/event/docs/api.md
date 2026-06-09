@@ -9,8 +9,12 @@ QueueまたはDispatcherだけを利用するmoduleは、対応する個別heade
 | `utility_event.h` | 外部公開用の集約header |
 | `utility_event_result.h` | 共通result code |
 | `utility_event_types.h` | Event記述子と共通ID |
+| `utility_event_buffer.h` | Buffer Pool所有Envelopeとmove Queue |
+| `utility_event_contract.h` | Event IDとpayload契約のRegistry |
 | `utility_event_queue.h` | 固定長FIFO Queue |
 | `utility_event_dispatcher.h` | handler登録と同期配送 |
+| `utility_event_executor.h` | Timer、契約検証、同期配送の実行step |
+| `utility_event_metrics.h` | Event処理Metrics |
 | `utility_event_state_machine.h` | table-driven State Machine |
 | `utility_event_timer.h` | 外部tick駆動Timer Scheduler |
 | `utility_event_trace.h` | Event・状態遷移trace record生成 |
@@ -28,6 +32,72 @@ QueueまたはDispatcherだけを利用するmoduleは、対応する個別heade
 | `payload_size` | payloadのbyte数 |
 
 `payload`の解釈、所有権、解放方法はEvent IDごとの契約で定義する。
+
+## Buffer Pool API
+
+| API | 動作 |
+| --- | --- |
+| `ut_event_buffer_message_create_copy` | Poolへalloc/writeして所有Envelopeを生成 |
+| `ut_event_buffer_message_release` | 所有handleをPoolへ返却 |
+| `ut_event_buffer_message_event` | Dispatcher用Eventを取得 |
+| `ut_event_buffer_message_read` | Envelopeの有効範囲からcopy |
+| `ut_event_buffer_queue_init` | 所有Envelope専用Queueを初期化 |
+| `ut_event_buffer_queue_push_move` | producerからQueueへ所有権をmove |
+| `ut_event_buffer_queue_pop_move` | Queueからconsumerへ所有権をmove |
+| `ut_event_buffer_queue_count` | Queue件数を取得 |
+| `ut_event_buffer_queue_release_all` | Queue所有handleを全返却 |
+
+`ut_event_buffer_pool_t`はalloc、free、write、read callbackとopaque contextを持つ。
+Event UtilityはPool実装、handle bit layout、arena、OSを認識しない。
+
+所有権規則:
+
+| 操作 | 成功時 | 失敗時 |
+| --- | --- | --- |
+| create_copy | messageが所有 | allocationなし、または内部free済み |
+| push_move | Queueが所有 | source messageが所有 |
+| pop_move | destinationが所有 | Queueが所有 |
+| release | 所有権終了 | messageが所有を維持 |
+| release_all | Queueが空 | 失敗位置以降をQueueが所有 |
+
+Envelope内の`event.payload`はEnvelope自身の`buffer_ref`を指す。このためEnvelopeを
+通常の`ut_event_queue_t`へ浅くcopyしてはならない。専用move Queueを使用する。
+
+## Contract Registry API
+
+| API | 動作 |
+| --- | --- |
+| `ut_event_contract_registry_init` | table条件とEvent ID重複を検査して初期化 |
+| `ut_event_contract_find` | Event IDのContractを取得 |
+| `ut_event_contract_validate` | Event ID、payload pointer、sizeを検証 |
+
+`UT_EVENT_PAYLOAD_NONE`、`UT_EVENT_PAYLOAD_BORROWED`、
+`UT_EVENT_PAYLOAD_BUFFER_REF`で所有方式を明示する。Registryは所有方式に基づく解放を
+実行せず、Event schemaの検証と診断metadataの提供だけを担当する。
+
+## Executor API
+
+| API | 動作 |
+| --- | --- |
+| `ut_event_executor_init` | Queue、Dispatcherと任意のTimer/Contract/Metricsを接続 |
+| `ut_event_executor_run_once` | Timer処理後、budget件まで検証・同期配送 |
+
+Contract違反EventはQueueから除去して配送しない。購読先なしは`unhandled`として記録し、
+残りのEvent処理を継続する。TimerのQueue満杯は既存Queueをdrainした後に
+`UT_EVENT_FULL`として呼出側へ返す。
+
+## Metrics API
+
+| API | 動作 |
+| --- | --- |
+| `ut_event_metrics_init` | counterを0で初期化 |
+| `ut_event_metrics_record_publish` | publish結果とQueue件数を記録 |
+| `ut_event_metrics_observe_queue` | Queue high-water markを更新 |
+| `ut_event_metrics_snapshot` | 現在値を値copy |
+| `ut_event_metrics_reset` | 全counterを0へ戻す |
+
+累積counterは`UINT64_MAX`で飽和し、wraparoundしない。Metricsはheap、clock、lock、
+出力I/Oを所有しない。
 
 ## Queue API
 

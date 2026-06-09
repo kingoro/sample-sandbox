@@ -26,16 +26,24 @@ common_flags=(
 )
 
 event_sources=(
+    Utility/event/src/utility_event_buffer.c
+    Utility/event/src/utility_event_contract.c
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
+    Utility/event/src/utility_event_executor.c
+    Utility/event/src/utility_event_metrics.c
     Utility/event/src/utility_event_state_machine.c
     Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c
     Utility/event/src/utility_event_trace_log.c
     Utility/log/src/utility_logger.c
     Utility/log/src/utility_log_console.c
+    Utility/event/tests/test_utility_event_buffer.c
+    Utility/event/tests/test_utility_event_contract.c
     Utility/event/tests/test_utility_event_queue.c
     Utility/event/tests/test_utility_event_dispatcher.c
+    Utility/event/tests/test_utility_event_executor.c
+    Utility/event/tests/test_utility_event_metrics.c
     Utility/event/tests/test_utility_event_state_machine.c
     Utility/event/tests/test_utility_event_timer.c
     Utility/event/tests/test_utility_event_trace.c
@@ -51,8 +59,12 @@ log_sources=(
 )
 
 event_integration_sources=(
+    Utility/event/src/utility_event_buffer.c
+    Utility/event/src/utility_event_contract.c
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
+    Utility/event/src/utility_event_executor.c
+    Utility/event/src/utility_event_metrics.c
     Utility/event/src/utility_event_state_machine.c
     Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c
@@ -99,8 +111,12 @@ if ! "${build_dir}/utility_event_integration_tests"; then
 fi
 
 production_sources=(
+    Utility/event/src/utility_event_buffer.c
+    Utility/event/src/utility_event_contract.c
     Utility/event/src/utility_event_queue.c
     Utility/event/src/utility_event_dispatcher.c
+    Utility/event/src/utility_event_executor.c
+    Utility/event/src/utility_event_metrics.c
     Utility/event/src/utility_event_state_machine.c
     Utility/event/src/utility_event_timer.c
     Utility/event/src/utility_event_trace.c

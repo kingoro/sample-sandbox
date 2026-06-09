@@ -31,6 +31,44 @@ Queueがコピーするのは`ut_event_t`だけであり、`payload`が指すデ
 
 実装は`src/utility_event_queue.c`へ分離し、Dispatcherへ依存しない。
 
+## Buffer Pool連携
+
+通常のEvent QueueはEvent記述子を浅くcopyするため、stack上のhandle descriptorを
+`payload`へ設定するとcopy後にpointer寿命が切れる。またhandleだけを整数からpointerへ
+変換する方式はportable Cの契約として採用できない。
+
+そこでBuffer Pool連携では、Event、Pool参照、handle、length、所有flagを
+`ut_event_buffer_message_t`へまとめ、専用QueueがEnvelope全体をmoveする。
+
+```text
+Producer owns handle
+    |
+    | push_move success
+    v
+Queue owns handle
+    |
+    | pop_move success
+    v
+Consumer owns handle
+    |
+    | release success
+    v
+Pool owns free storage
+```
+
+この形を選ぶ理由:
+
+- 大きなpayload本体をQueueへcopyせず、固定sizeのhandleだけを移動できる
+- push失敗、consumer error、shutdown時の解放責務がAPI結果から判定できる
+- source Envelopeを空にするため、通常経路での二重releaseを検出しやすい
+- Pool操作をcallback化し、既存Memory Buffer、RTOS Pool、専用DMA Poolへ接続できる
+- Event handlerにはopaque handleとlengthだけを公開し、arena pointer寿命を渡さない
+- generation付きhandleを使うPoolでは、release後のstale handle利用をPool側で拒否できる
+
+Event Utilityはcallback呼出しを直列化しない。同じPoolやQueueを複数実行主体から使う
+場合は利用側で排他する。handlerがhandle所有権を別処理へ保持したい場合は、dispatch後に
+自動releaseせず、Envelope自体の所有権移譲をApplication契約として追加する。
+
 ## Dispatcher
 
 DispatcherはEvent IDとhandlerの対応を固定長配列へ登録する。dispatchは同期処理で、
@@ -42,6 +80,39 @@ handler実行中の登録変更と再帰dispatchは拒否する。handlerは短�
 
 実装は`src/utility_event_dispatcher.c`へ分離し、Queueへ依存しない。Event Loopは
 Queueから取り出したEventをDispatcherへ渡す利用側の構成要素である。
+
+## Event Contract Registry
+
+Event ID、payload size範囲、所有方式を不変tableへ集約する。Registryはtableをcopyせず、
+初期化時にID重複と矛盾したsize条件を検出する。Executorへ任意接続すると、未登録Eventや
+payload条件違反をhandler実行前に拒否できる。
+
+ContractをDispatcherへ埋め込まない理由は、単純な通知用途ではschema検証を不要にでき、
+既存Queue/Dispatcherの小さな責務を維持できるためである。所有方式は解放処理ではなく
+契約metadataであり、実際の寿命管理はborrow元またはBuffer Envelope所有者が担う。
+
+## Event Executor
+
+Executorは次の順序を1 stepとして固定する。
+
+```text
+Timer process
+    -> Event Queue
+    -> Contract validation
+    -> Dispatcher
+    -> Metrics
+```
+
+1回の処理件数をbudgetで制限し、Eventが継続的に到着しても呼出側が他の処理へ制御を
+戻せる。Executor自身はthread、sleep、clock、RTOS Queueを所有しないため、bare metalの
+main loop、RTOS task、Linux workerのどこからでも同じcoreを呼べる。
+
+## Metrics
+
+MetricsはQueue high-water mark、publish満杯、配送、未購読、Contract拒否、Timer詰まり、
+budget枯渇を固定size counterへ記録する。counterをLogや通信へ直接出力しないため、
+実時間処理と診断transportを分離できる。長時間稼働でcounterがwrapしないよう
+`UINT64_MAX`で飽和する。
 
 ## State Machine
 
@@ -112,18 +183,21 @@ State Machineからの自動通知までとする。永続化、通信送信、U
 - payload参照を処理完了まで有効に保つ
 - Queue満杯時の再試行、破棄、fault化方針を決める
 - Event IDの名前空間とpayload型の対応をapplication側で定義する
+- Buffer Envelopeを所有する経路の終端でreleaseまたは再移譲する
+- Applicationから直接Queueへpublishした結果を必要に応じてMetricsへ通知する
+- Executorのbudget、呼出周期、idle/sleep方針を利用環境に合わせて決める
 - trace sinkの実行時間、保存先、並行アクセスをapplication側で定義する
 
 ## 対象外
 
 - thread生成、Mutex、Semaphore
 - RTOS Queueの置換
-- payload memoryの確保、copy、解放
+- Buffer Pool内部のpayload memory割当方式
+- Buffer Pool実装、arena管理、handle bit layout
 - 非同期handler実行
 - event priority、永続化、network配送
 - 階層State Machine、並行状態、history state
 - hardware timer、clock device、tick変換の所有
-- Buffer Pool handleの所有権移譲
 - Log Recordの永続化、通信送信、USB/UART出力
 
 ## 参考ソース
@@ -135,6 +209,12 @@ State Machineからの自動通知までとする。永続化、通信送信、U
 - POSIX CLOCK_MONOTONIC: https://pubs.opengroup.org/onlinepubs/000095399/functions/clock_getres.html
 - Zephyr Timers: https://docs.zephyrproject.org/latest/kernel/services/timing/timers.html
 - FreeRTOS Software Timers: https://www.freertos.org/Documentation/02-Kernel/02-Kernel-features/05-Software-timers/01-Software-timers
+- Zephyr Workqueue Threads: https://docs.zephyrproject.org/latest/kernel/services/threads/workqueue.html
+- CMSIS-RTOS2 Message Queue: https://arm-software.github.io/CMSIS_6/latest/RTOS2/group__CMSIS__RTOS__Message.html
+- FreeRTOS Direct-to-Task Notifications: https://www.freertos.org/Documentation/02-Kernel/02-Kernel-features/03-Direct-to-task-notifications/01-Task-notifications
+- CMSIS-RTOS2 Memory Pool: https://arm-software.github.io/CMSIS_6/main/RTOS2/group__CMSIS__RTOS__PoolMgmt.html
+- Zephyr Memory Slabs: https://docs.zephyrproject.org/latest/kernel/memory_management/slabs.html
+- CMSIS-RTOS2 zero-copy mailbox tutorial: https://arm-software.github.io/CMSIS_5/RTOS2/html/rtos2_tutorial.html
 
 これらは設計判断の参考であり、本UtilityはSCXML実行器やQP/C互換frameworkではない。
 組み込みCの長期保守で重要な、event-driven、明示的な遷移、entry/exit/action、

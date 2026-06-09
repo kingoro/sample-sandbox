@@ -64,14 +64,34 @@ static-analysis: utility-static-analysis
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I memory-buffer/include -c memory-buffer/examples/c_usage.c \
 		-o /tmp/memory_buffer_c_usage_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I memory-buffer/include -I Utility/event/include \
+		-c memory-buffer/src/memory_buffer_event_adapter.c \
+		-o /tmp/memory_buffer_event_adapter_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I memory-buffer/include -I Utility/event/include \
+		-c memory-buffer/tests/test_event_buffer_integration.c \
+		-o /tmp/memory_buffer_event_integration_analyzed.o
 
 utility-static-analysis: utility-log-static-analysis
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -c Utility/event/src/utility_event_buffer.c \
+		-o /tmp/utility_event_buffer_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -c Utility/event/src/utility_event_contract.c \
+		-o /tmp/utility_event_contract_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -c Utility/event/src/utility_event_queue.c \
 		-o /tmp/utility_event_queue_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -c Utility/event/src/utility_event_dispatcher.c \
 		-o /tmp/utility_event_dispatcher_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -c Utility/event/src/utility_event_executor.c \
+		-o /tmp/utility_event_executor_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -c Utility/event/src/utility_event_metrics.c \
+		-o /tmp/utility_event_metrics_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -c Utility/event/src/utility_event_state_machine.c \
 		-o /tmp/utility_event_state_machine_analyzed.o
@@ -87,12 +107,28 @@ utility-static-analysis: utility-log-static-analysis
 		-o /tmp/utility_event_trace_log_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_buffer.c \
+		-o /tmp/utility_event_buffer_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_contract.c \
+		-o /tmp/utility_event_contract_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_queue.c \
 		-o /tmp/utility_event_queue_test_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_dispatcher.c \
 		-o /tmp/utility_event_dispatcher_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_executor.c \
+		-o /tmp/utility_event_executor_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
+		-c Utility/event/tests/test_utility_event_metrics.c \
+		-o /tmp/utility_event_metrics_test_analyzed.o
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -I Utility/log/include -I Utility/event/tests \
 		-c Utility/event/tests/test_utility_event_state_machine.c \
@@ -138,15 +174,25 @@ cppcheck:
 	cppcheck --enable=warning,style,performance,portability \
 		--error-exitcode=1 --std=c11 --suppress=missingIncludeSystem \
 		-I memory-buffer/include memory-buffer/examples/c_usage.c \
+		memory-buffer/src/memory_buffer_event_adapter.c \
+		memory-buffer/tests/test_event_buffer_integration.c \
 		-I Utility/event/include -I Utility/log/include \
+		Utility/event/src/utility_event_buffer.c \
+		Utility/event/src/utility_event_contract.c \
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_executor.c \
+		Utility/event/src/utility_event_metrics.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
 		Utility/event/src/utility_event_trace_log.c \
-		-I Utility/event/tests Utility/event/tests/test_utility_event_queue.c \
+		-I Utility/event/tests Utility/event/tests/test_utility_event_buffer.c \
+		Utility/event/tests/test_utility_event_contract.c \
+		Utility/event/tests/test_utility_event_queue.c \
 		Utility/event/tests/test_utility_event_dispatcher.c \
+		Utility/event/tests/test_utility_event_executor.c \
+		Utility/event/tests/test_utility_event_metrics.c \
 		Utility/event/tests/test_utility_event_state_machine.c \
 		Utility/event/tests/test_utility_event_timer.c \
 		Utility/event/tests/test_utility_event_trace.c \
@@ -171,8 +217,12 @@ utility-event-fuzz-smoke:
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror \
 		-fsanitize=address,undefined -fno-omit-frame-pointer \
 		-I Utility/event/include -I Utility/log/include \
+		Utility/event/src/utility_event_buffer.c \
+		Utility/event/src/utility_event_contract.c \
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_executor.c \
+		Utility/event/src/utility_event_metrics.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
@@ -196,8 +246,12 @@ utility-fuzz:
 	clang -std=c11 -Wall -Wextra -Wpedantic -Werror \
 		-fsanitize=fuzzer,address,undefined \
 		-I Utility/event/include -I Utility/log/include \
+		Utility/event/src/utility_event_buffer.c \
+		Utility/event/src/utility_event_contract.c \
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_executor.c \
+		Utility/event/src/utility_event_metrics.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
@@ -218,8 +272,13 @@ metrics:
 	python3 tools/quality.py metrics \
 		--output $(REPORT_DIR)/metrics/index.html \
 		memory-buffer/src/buffer.rs memory-buffer/examples/c_usage.c \
+		memory-buffer/src/memory_buffer_event_adapter.c \
+		Utility/event/src/utility_event_buffer.c \
+		Utility/event/src/utility_event_contract.c \
 		Utility/event/src/utility_event_queue.c \
 		Utility/event/src/utility_event_dispatcher.c \
+		Utility/event/src/utility_event_executor.c \
+		Utility/event/src/utility_event_metrics.c \
 		Utility/event/src/utility_event_state_machine.c \
 		Utility/event/src/utility_event_timer.c \
 		Utility/event/src/utility_event_trace.c \
