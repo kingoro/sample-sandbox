@@ -1,8 +1,9 @@
-.PHONY: help check extended-check test utility-test utility-event-test utility-log-test utility-event-examples utility-log-examples unit-mock-sample domain-service-sample docs rust-docs c-docs c-docs-check header header-check static-analysis utility-static-analysis utility-log-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-event-fuzz-smoke utility-log-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
+.PHONY: help check extended-check test domain-test utility-test utility-event-test utility-log-test utility-event-examples utility-log-examples unit-mock-sample domain-service-sample docs rust-docs c-docs c-docs-check header header-check static-analysis domain-static-analysis utility-static-analysis utility-log-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-event-fuzz-smoke utility-log-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
 
 BUILD_DIR ?= build/memory-buffer
 UTILITY_BUILD_DIR ?= build/utility-event
 UTILITY_LOG_BUILD_DIR ?= build/utility-log
+DOMAIN_BUILD_DIR ?= build/domain
 REPORT_DIR ?= build/reports
 PORTABLE_TARGET ?= thumbv7em-none-eabi
 NIGHTLY_TOOLCHAIN ?= nightly-2026-06-06
@@ -15,11 +16,13 @@ help:
 		'  utility-test     全C Utilityの単体テスト' \
 		'  utility-event-test Event UtilityのC単体テスト' \
 		'  utility-log-test Log UtilityのC単体テスト' \
+		'  domain-test      動的Workflow loaderとDomain ServiceのC単体テスト' \
 		'  utility-event-examples Event Utilityの3サンプルを実行' \
 		'  utility-log-examples Log Utilityの3サンプルを実行' \
 		'  unit-mock-sample 10個のMock Unit操作をbuildして実行' \
 		'  domain-service-sample A機能の階層Workflowをbuildして実行' \
 		'  static-analysis  Rust、C利用例、全C Utilityの静的解析' \
+		'  domain-static-analysis Domain、Unit、動的定義loaderのGCC静的解析' \
 		'  utility-static-analysis 全C UtilityのGCC静的解析' \
 		'  utility-log-static-analysis Log UtilityのGCC静的解析' \
 		'  docs             Rustdocと全C API/test仕様書を生成' \
@@ -62,7 +65,7 @@ header-check:
 		--crate memory-buffer \
 		--output memory-buffer/include/memory_buffer_generated.h
 
-static-analysis: utility-static-analysis
+static-analysis: utility-static-analysis domain-static-analysis
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets -- -D warnings
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
@@ -76,6 +79,42 @@ static-analysis: utility-static-analysis
 		-I memory-buffer/include -I Utility/event/include \
 		-c memory-buffer/tests/test_event_buffer_integration.c \
 		-o /tmp/memory_buffer_event_integration_analyzed.o
+
+domain-static-analysis:
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I src/domain -I src/unit \
+		-I Utility/event/include -I Utility/log/include \
+		-c src/domain/domain_workflow_loader.c \
+		-o /tmp/domain_workflow_loader_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I src/domain -I src/unit \
+		-I Utility/event/include -I Utility/log/include \
+		-c src/domain/domain_workflow.c \
+		-o /tmp/domain_workflow_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I src/domain -I src/unit \
+		-I Utility/event/include -I Utility/log/include \
+		-c src/domain/domain_event_publisher.c \
+		-o /tmp/domain_event_publisher_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I src/domain -I src/unit \
+		-I Utility/event/include -I Utility/log/include \
+		-c src/domain/domain_service.c \
+		-o /tmp/domain_service_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer -pthread \
+		-I src/domain -I src/unit \
+		-I Utility/event/include -I Utility/log/include \
+		-c src/domain/domain_service_sample.c \
+		-o /tmp/domain_service_sample_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer -pthread \
+		-I src/domain -I src/unit \
+		-I Utility/event/include -I Utility/log/include \
+		-c src/domain/tests/test_domain_workflow_loader.c \
+		-o /tmp/domain_workflow_loader_test_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer -pthread \
+		-I src/unit -I Utility/log/include \
+		-c src/unit/unit_mock.c \
+		-o /tmp/unit_mock_analyzed.o
 
 utility-static-analysis: utility-log-static-analysis
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
@@ -245,7 +284,16 @@ cppcheck:
 		Utility/log/tests/test_utility_log_main.c \
 		Utility/log/examples/basic_default_logger.c \
 		Utility/log/examples/ring_maintenance.c \
-		Utility/log/examples/thread_safe_logger.c
+		Utility/log/examples/thread_safe_logger.c \
+		-I src/domain -I src/unit \
+		src/domain/domain_workflow_loader.c \
+		src/domain/domain_workflow.c \
+		src/domain/domain_event_publisher.c \
+		src/domain/domain_service.c \
+		src/domain/domain_service_sample.c \
+		src/domain/tests/test_domain_workflow_loader.c \
+		src/unit/unit_mock.c \
+		src/unit/unit_mock_sample.c
 
 miri:
 	cargo +$(NIGHTLY_TOOLCHAIN) miri test --lib
@@ -330,7 +378,12 @@ metrics:
 		Utility/event/src/utility_event_trace.c \
 		Utility/event/src/utility_event_trace_log.c \
 		Utility/log/src/utility_logger.c \
-		Utility/log/src/utility_log_console.c
+		Utility/log/src/utility_log_console.c \
+		src/domain/domain_workflow_loader.c \
+		src/domain/domain_workflow.c \
+		src/domain/domain_event_publisher.c \
+		src/domain/domain_service.c \
+		src/unit/unit_mock.c
 
 quality: coverage metrics
 
@@ -342,7 +395,7 @@ quality-report: quality c-docs
 		--c-coverage $(REPORT_DIR)/coverage/utility-c/summary.json
 	@printf '品質レポート: %s/index.html\n' "$(REPORT_DIR)"
 
-test: utility-test
+test: utility-test domain-test
 	cargo test --workspace
 	cmake -S memory-buffer -B $(BUILD_DIR)
 	cmake --build $(BUILD_DIR)
@@ -359,6 +412,11 @@ utility-log-test:
 	cmake -S Utility/log -B $(UTILITY_LOG_BUILD_DIR)
 	cmake --build $(UTILITY_LOG_BUILD_DIR)
 	ctest --test-dir $(UTILITY_LOG_BUILD_DIR) --output-on-failure
+
+domain-test:
+	cmake -S src/domain -B $(DOMAIN_BUILD_DIR)
+	cmake --build $(DOMAIN_BUILD_DIR)
+	ctest --test-dir $(DOMAIN_BUILD_DIR) --output-on-failure
 
 utility-event-examples:
 	cmake -S Utility/event -B $(UTILITY_BUILD_DIR)
@@ -391,6 +449,7 @@ domain-service-sample:
 		-I Utility/event/include -I Utility/log/include \
 		src/domain/domain_event_publisher.c \
 		src/domain/domain_workflow.c \
+		src/domain/domain_workflow_loader.c \
 		src/domain/domain_service.c \
 		src/domain/domain_service_sample.c \
 		src/unit/unit_mock.c \
@@ -463,3 +522,4 @@ clean:
 	cmake -E remove_directory $(BUILD_DIR)
 	cmake -E remove_directory $(UTILITY_BUILD_DIR)
 	cmake -E remove_directory $(UTILITY_LOG_BUILD_DIR)
+	cmake -E remove_directory $(DOMAIN_BUILD_DIR)

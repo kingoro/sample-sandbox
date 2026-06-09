@@ -10,12 +10,15 @@
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <time.h>
 
 /** サンプルが生成するUnit数。 */
 #define DOMAIN_SAMPLE_UNIT_COUNT 10U
 /** サンプルLoggerのRAM Ring容量。 */
 #define DOMAIN_SAMPLE_LOG_CAPACITY 256U
+/** 引数省略時に読み込むWorkflow定義。 */
+#define DOMAIN_SAMPLE_WORKFLOW_PATH "src/domain/examples/workflows.json"
 
 /**
  * Controlが受け取るFeature終端通知。
@@ -156,9 +159,11 @@ static bool domain_sample_run(
 /**
  * Logger、Unit、Domain Serviceを構成してA機能を実行する。
  *
+ * @param argument_count command line引数数。
+ * @param arguments command line引数。第1引数でJSON pathを上書きできる。
  * @return Scenario正常完了時0、準備または実行失敗時1。
  */
-int main(void)
+int main(int argument_count, char *arguments[])
 {
     ut_logger_t logger;
     ut_log_record_t log_storage[DOMAIN_SAMPLE_LOG_CAPACITY];
@@ -187,6 +192,8 @@ int main(void)
     const bool mutex_initialized =
         pthread_mutex_init(&log_mutex, NULL) == 0;
     bool succeeded = mutex_initialized;
+    const char *workflow_path = argument_count > 1
+        ? arguments[1] : DOMAIN_SAMPLE_WORKFLOW_PATH;
 
     if (succeeded) {
         succeeded = ut_log_initialize(
@@ -201,6 +208,19 @@ int main(void)
     if (succeeded) {
         service = domain_service_create(units, DOMAIN_SAMPLE_UNIT_COUNT);
         succeeded = service != NULL;
+    }
+    if (succeeded) {
+        const domain_workflow_load_result_t load_result =
+            domain_service_load_workflows_json(service, workflow_path);
+
+        succeeded = load_result == DOMAIN_WORKFLOW_LOAD_OK;
+        if (!succeeded) {
+            UT_LOG_ERROR(
+                "SAMPLE",
+                "workflow load failed path=%s result=%d",
+                workflow_path,
+                load_result);
+        }
     }
     if (succeeded) {
         succeeded = domain_service_set_event_handler(

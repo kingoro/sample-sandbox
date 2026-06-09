@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "workflows": [
+    {
+      "feature": 1,
+      "condition": 1,
+      "scenario": {
+        "id": 1001,
+        "name": "standard-order",
+        "sequences": [
+          {
+            "name": "first-half",
+            "steps": [
+              {"unit": 1, "command": "execute", "timeout_ms": 2000},
+              {"unit": 2, "command": "execute", "timeout_ms": 2000},
+              {"unit": 3, "command": "execute", "timeout_ms": 2000},
+              {"unit": 4, "command": "execute", "timeout_ms": 2000},
+              {"unit": 5, "command": "execute", "timeout_ms": 2000}
+            ]
+          },
+          {
+            "name": "second-half",
+            "steps": [
+              {"unit": 6, "command": "execute", "timeout_ms": 2000},
+              {"unit": 7, "command": "execute", "timeout_ms": 2000},
+              {"unit": 8, "command": "execute", "timeout_ms": 2000},
+              {"unit": 9, "command": "execute", "timeout_ms": 2000},
+              {"unit": 10, "command": "execute", "timeout_ms": 2000}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "feature": 1,
+      "condition": 2,
+      "scenario": {
+        "id": 1002,
+        "name": "reverse-order",
+        "sequences": [
+          {
+            "name": "reverse-first-half",
+            "steps": [
+              {"unit": 10, "command": "execute", "timeout_ms": 2000},
+              {"unit": 9, "command": "execute", "timeout_ms": 2000},
+              {"unit": 8, "command": "execute", "timeout_ms": 2000},
+              {"unit": 7, "command": "execute", "timeout_ms": 2000},
+              {"unit": 6, "command": "execute", "timeout_ms": 2000}
+            ]
+          },
+          {
+            "name": "reverse-second-half",
+            "steps": [
+              {"unit": 5, "command": "execute", "timeout_ms": 2000},
+              {"unit": 4, "command": "execute", "timeout_ms": 2000},
+              {"unit": 3, "command": "execute", "timeout_ms": 2000},
+              {"unit": 2, "command": "execute", "timeout_ms": 2000},
+              {"unit": 1, "command": "execute", "timeout_ms": 2000}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

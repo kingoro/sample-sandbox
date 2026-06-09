@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "workflows": [
+    {
+      "feature": 1,
+      "condition": 7,
+      "scenario": {
+        "id": 7001,
+        "name": "invalid-unit",
+        "sequences": [
+          {
+            "name": "only",
+            "steps": [
+              {"unit": 11, "command": "execute", "timeout_ms": 100}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

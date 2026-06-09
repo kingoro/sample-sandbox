@@ -58,12 +58,92 @@ typedef struct {
 } domain_scenario_t;
 
 /**
+ * 外部定義1件と検索条件を対応付けるWorkflow entry。
+ */
+typedef struct {
+    /** Domain Serviceの機能ID。 */
+    uint32_t feature;
+    /** InputのScenario選択条件。 */
+    uint32_t condition;
+    /** 検証済みScenario定義。 */
+    domain_scenario_t scenario;
+} domain_workflow_entry_t;
+
+/**
+ * 外部ファイルから読み込んだWorkflow定義集合。
+ *
+ * 内部配列を所有する。fieldは参照専用であり、呼出側が変更してはならない。
+ */
+typedef struct {
+    /** 検証済みWorkflow entry配列。 */
+    domain_workflow_entry_t *entries;
+    /** entriesの要素数。 */
+    size_t entry_count;
+} domain_workflow_catalog_t;
+
+/**
+ * Workflow定義読込み結果。
+ */
+typedef enum {
+    /** 読込みと検証に成功した。 */
+    DOMAIN_WORKFLOW_LOAD_OK = 0,
+    /** 引数が無効だった。 */
+    DOMAIN_WORKFLOW_LOAD_INVALID_ARGUMENT,
+    /** ファイルを開けない、または読み取れなかった。 */
+    DOMAIN_WORKFLOW_LOAD_IO_ERROR,
+    /** JSON構文が無効だった。 */
+    DOMAIN_WORKFLOW_LOAD_PARSE_ERROR,
+    /** JSONは読めたがWorkflow schemaまたは値が無効だった。 */
+    DOMAIN_WORKFLOW_LOAD_SCHEMA_ERROR,
+    /** 必要な領域を確保できなかった。 */
+    DOMAIN_WORKFLOW_LOAD_NO_MEMORY,
+    /** Serviceが実行中のため定義を差し替えられなかった。 */
+    DOMAIN_WORKFLOW_LOAD_BUSY
+} domain_workflow_load_result_t;
+
+/**
  * A機能の実行条件に対応するScenarioを取得する。
  *
  * @param condition Controlから渡された実行条件。1または2を指定する。
  * @return 静的寿命を持つScenario。未対応条件ではNULL。
  */
 const domain_scenario_t *domain_workflow_feature_a(uint32_t condition);
+
+/**
+ * @fn domain_workflow_load_result_t domain_workflow_catalog_load_json_file(const char *path, size_t unit_count, domain_workflow_catalog_t **out_catalog);
+ * JSONファイルからWorkflow Catalogを生成する。
+ *
+ * 対応schemaはsrc/domain/examples/workflows.jsonを参照する。読込み時にfeatureと
+ * conditionの重複、Scenario ID、Sequence、Step、Unit番号、command、timeoutを
+ * 検証する。
+ *
+ * @param path 読み込むJSONファイルpath。
+ * @param unit_count 利用可能なUnit数。Stepのunit番号上限検証に使用する。
+ * @param out_catalog 生成したCatalogの格納先。成功時に所有権が呼出側へ移る。
+ * @return 読込み結果。
+ */
+domain_workflow_load_result_t domain_workflow_catalog_load_json_file(const char *path, size_t unit_count, domain_workflow_catalog_t **out_catalog);
+
+/**
+ * Workflow Catalogを破棄する。
+ *
+ * @param catalog load関数が生成したCatalog。NULLも許容する。
+ *
+ * Catalogから取得したScenario pointerの寿命も終了する。
+ */
+void domain_workflow_catalog_destroy(domain_workflow_catalog_t *catalog);
+
+/**
+ * featureとconditionに一致するScenarioを検索する。
+ *
+ * @param catalog 検索対象Catalog。
+ * @param feature 機能ID。
+ * @param condition Scenario選択条件。
+ * @return Catalog所有のScenario。未登録または引数不正時はNULL。
+ *
+ * 戻り値はCatalog破棄まで有効であり、呼出側は変更・解放してはならない。
+ */
+const domain_scenario_t *domain_workflow_catalog_find(const domain_workflow_catalog_t *catalog, uint32_t feature, uint32_t condition);
 
 #ifdef __cplusplus
 }

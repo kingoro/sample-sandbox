@@ -8,6 +8,7 @@
 #ifndef DOMAIN_SERVICE_H
 #define DOMAIN_SERVICE_H
 
+#include "domain_workflow.h"
 #include "unit_mock.h"
 
 #include <stddef.h>
@@ -153,6 +154,22 @@ domain_service_t *domain_service_create(unit_mock_t *const *units, size_t unit_c
  * Controlは通常終端状態を確認してから破棄する。
  */
 void domain_service_destroy(domain_service_t *service);
+
+/**
+ * @fn domain_workflow_load_result_t domain_service_load_workflows_json(domain_service_t *service, const char *path);
+ * JSONファイルからWorkflow定義を読み込み、現在のCatalogと差し替える。
+ *
+ * JSON全体のparseとschema検証に成功した場合だけ差し替える。失敗時は現在のCatalogを
+ * 維持する。ServiceがWorkflow実行中の場合はDOMAIN_WORKFLOW_LOAD_BUSYを返す。
+ *
+ * @param service 定義を更新するService。
+ * @param path 読み込むJSONファイルpath。
+ * @return Workflow定義読込み結果。
+ *
+ * ファイル内容は関数内で値として展開され、戻った後にpathやファイルを保持しない。
+ * 新しい定義は次のdomain_service_write_input()から使用される。
+ */
+domain_workflow_load_result_t domain_service_load_workflows_json(domain_service_t *service, const char *path);
 
 /**
  * Feature終端EventのControl向け通知先を設定する。

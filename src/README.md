@@ -15,6 +15,9 @@ src/
 │   ├── domain_service.h/.c
 │   ├── domain_event_publisher.h/.c
 │   ├── domain_workflow.h/.c
+│   ├── domain_workflow_loader.c
+│   ├── examples/workflows.json
+│   ├── tests/
 │   └── domain_service_sample.c
 └── unit/
     ├── unit_mock.h/.c
@@ -25,7 +28,9 @@ src/
 | --- | --- |
 | `domain_service` | Feature、Scenario、Sequence Runnerと状態遷移を管理する |
 | `domain_event_publisher` | Domain Event ID、payload、Unit結果変換を定義する |
-| `domain_workflow` | Scenario、Sequence、Stepの不変な構成データを定義する |
+| `domain_workflow` | Runnerが参照するScenario、Sequence、Step modelを定義する |
+| `domain_workflow_loader` | 外部JSONをparse・検証してWorkflow Catalogを生成する |
+| `examples/workflows.json` | 再ビルドせず差し替えられるWorkflow定義例 |
 | `domain_service_sample` | Control相当の初期化、周期実行、終端Event受信例 |
 | `unit_mock` | Inputを受けてworker threadで非同期実行するMock Unit |
 | `unit_mock_sample` | 10個のUnitを直接起動する単体利用例 |
@@ -98,8 +103,79 @@ flowchart TD
 条件1はUnit 1から10を順番に実行する。条件2はUnit 10から1を順番に実行する。
 どちらも2 Sequence、合計10 Stepである。
 
-`domain_workflow`は構成データだけを持ち、現在位置や実行状態を持たない。状態はRunnerが
-所有するため、同じWorkflow定義を要求ごとに再利用できる。
+`domain_workflow`のmodelは構成データだけを持ち、現在位置や実行状態を持たない。
+状態はRunnerが所有するため、同じWorkflow定義を要求ごとに再利用できる。
+
+## 動的Workflow定義
+
+`domain_service_load_workflows_json()`で外部JSONを読み込む。JSONは内部parserで構文を
+検証した後、Runnerが参照する`domain_workflow_catalog_t`へ変換される。Runnerと
+State MachineはJSON文字列を直接扱わない。
+
+```mermaid
+flowchart LR
+    File["workflows.json"]
+    Parser["JSON Parser"]
+    Validator["Schema Validator"]
+    NewCatalog["New Catalog"]
+    Service["Domain Service"]
+    Runner["Scenario / Sequence Runner"]
+    OldCatalog["Current Catalog"]
+
+    File --> Parser
+    Parser --> Validator
+    Validator -->|"valid"| NewCatalog
+    NewCatalog -->|"atomic swap"| Service
+    Service --> Runner
+    Service --> OldCatalog
+    Validator -->|"invalid: current catalogを維持"| OldCatalog
+```
+
+対応schema:
+
+```json
+{
+  "schema_version": 1,
+  "workflows": [
+    {
+      "feature": 1,
+      "condition": 1,
+      "scenario": {
+        "id": 1001,
+        "name": "standard-order",
+        "sequences": [
+          {
+            "name": "first-half",
+            "steps": [
+              {
+                "unit": 1,
+                "command": "execute",
+                "timeout_ms": 2000
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+読込み時に次を検証する。
+
+- `schema_version`が対応versionか
+- `feature + condition`とScenario IDが重複していないか
+- Scenarioに1つ以上のSequenceがあるか
+- Sequenceに1つ以上のStepがあるか
+- `unit`が登録済みUnitの1始まり範囲内か
+- `command`が対応済みの`execute`か
+- `timeout_ms`が0より大きいか
+- 合計Step数が`size_t`をoverflowしないか
+
+新しいCatalogはファイル全体の検証成功後にだけ現在定義と交換する。読込み失敗時は
+現在のCatalogを維持する。実行中のreloadは
+`DOMAIN_WORKFLOW_LOAD_BUSY`で拒否し、実行中Runnerが参照する定義の寿命を保証する。
+完了またはエラー後にreloadすると、次の`domain_service_write_input()`から新定義を使う。
 
 ## Eventの流れ
 
@@ -278,6 +354,24 @@ Domain Workflow全体:
 
 ```bash
 make domain-service-sample
+```
+
+一度buildした後は、JSONを編集して次の実行だけを繰り返せる。C sourceの再buildは不要。
+
+```bash
+build/sample/domain_service_sample src/domain/examples/workflows.json
+```
+
+別の定義ファイルも第1引数で指定できる。
+
+```bash
+build/sample/domain_service_sample /path/to/workflows.json
+```
+
+動的定義loaderの単体テスト:
+
+```bash
+make domain-test
 ```
 
 10個のMock Unitだけを直接動かす例:

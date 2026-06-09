@@ -95,6 +95,8 @@ struct domain_service {
     unit_mock_t *const *units;
     /** unitsの要素数。 */
     size_t unit_count;
+    /** 外部JSONから読み込んだ任意のWorkflow Catalog。 */
+    domain_workflow_catalog_t *workflow_catalog;
     /** Controlへ公開するOutput snapshot。 */
     domain_service_output_t output;
     /** Controlから最後に渡された単調増加tick。 */
@@ -716,8 +718,39 @@ void domain_service_destroy(domain_service_t *service)
 {
     if (service != NULL) {
         domain_event_publisher_destroy(service->publisher);
+        domain_workflow_catalog_destroy(service->workflow_catalog);
         free(service);
     }
+}
+
+domain_workflow_load_result_t domain_service_load_workflows_json(
+    domain_service_t *service,
+    const char *path)
+{
+    domain_workflow_catalog_t *loaded_catalog = NULL;
+
+    if (service == NULL || path == NULL) {
+        return DOMAIN_WORKFLOW_LOAD_INVALID_ARGUMENT;
+    }
+    if (service->output.status == DOMAIN_STATUS_RUNNING) {
+        return DOMAIN_WORKFLOW_LOAD_BUSY;
+    }
+    const domain_workflow_load_result_t result =
+        domain_workflow_catalog_load_json_file(
+            path,
+            service->unit_count,
+            &loaded_catalog);
+
+    if (result == DOMAIN_WORKFLOW_LOAD_OK) {
+        domain_workflow_catalog_t *old_catalog =
+            service->workflow_catalog;
+
+        service->scenario.definition = NULL;
+        service->scenario.sequence.definition = NULL;
+        service->workflow_catalog = loaded_catalog;
+        domain_workflow_catalog_destroy(old_catalog);
+    }
+    return result;
 }
 
 domain_input_result_t domain_service_set_event_handler(
@@ -749,7 +782,12 @@ domain_input_result_t domain_service_write_input(
     if (input->feature != DOMAIN_FEATURE_A) {
         return DOMAIN_INPUT_UNSUPPORTED;
     }
-    scenario = domain_workflow_feature_a(input->condition);
+    scenario = service->workflow_catalog == NULL
+        ? domain_workflow_feature_a(input->condition)
+        : domain_workflow_catalog_find(
+            service->workflow_catalog,
+            (uint32_t)input->feature,
+            input->condition);
     if (scenario == NULL) {
         return DOMAIN_INPUT_UNSUPPORTED;
     }
