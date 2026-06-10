@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt,clippy
+          rustup toolchain install nightly-2026-06-06 --profile minimal --component llvm-tools-preview,miri,rust-src
+          rustup target add thumbv7em-none-eabi --toolchain 1.96.0
+          rustup default 1.96.0
+
+      - name: Install quality tools
+        run: |
+          cargo install cbindgen --version 0.29.3 --locked
+          cargo install cargo-fuzz --version 0.13.1 --locked
+          cargo install cargo-llvm-cov --version 0.8.7 --locked
+          cargo install rust-code-analysis-cli --version 0.0.25 --locked
+          sudo apt-get update
+          sudo apt-get install -y cppcheck doxygen
+
+      - name: Run all quality gates
+        run: make extended-check cppcheck
+
+      - name: Upload HTML quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: |
+            build/reports
+            build/docs
+

@@ -1,0 +1,33 @@
+cmake_minimum_required(VERSION 3.20)
+project(memory_buffer_c_example C)
+include(CTest)
+
+set(MB_RUST_TARGET_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargo-target")
+
+add_custom_command(
+    OUTPUT "${MB_RUST_TARGET_DIR}/release/libmemory_buffer.a"
+    COMMAND
+        cargo build
+        --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml"
+        --release
+        --no-default-features
+        --target-dir "${MB_RUST_TARGET_DIR}"
+    DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/lib.rs"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/buffer.rs"
+    VERBATIM)
+
+add_custom_target(memory_buffer_rust ALL
+    DEPENDS "${MB_RUST_TARGET_DIR}/release/libmemory_buffer.a")
+
+add_library(memory_buffer STATIC IMPORTED GLOBAL)
+set_target_properties(memory_buffer PROPERTIES
+    IMPORTED_LOCATION "${MB_RUST_TARGET_DIR}/release/libmemory_buffer.a")
+add_dependencies(memory_buffer memory_buffer_rust)
+
+add_executable(memory_buffer_c_example examples/c_usage.c)
+target_include_directories(memory_buffer_c_example PRIVATE include)
+target_link_libraries(memory_buffer_c_example PRIVATE memory_buffer pthread dl m)
+
+add_test(NAME memory_buffer_c_integration COMMAND memory_buffer_c_example)

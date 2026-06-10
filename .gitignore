@@ -1,0 +1,5 @@
+/build/
+/target/
+/memory-buffer/fuzz/artifacts/
+/memory-buffer/fuzz/corpus/
+/memory-buffer/fuzz/target/

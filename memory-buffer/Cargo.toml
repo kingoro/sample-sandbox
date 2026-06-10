@@ -1,0 +1,13 @@
+[package]
+name = "memory-buffer"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Heap-free, C-compatible memory buffer ownership library"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[features]
+default = ["std"]
+std = []
