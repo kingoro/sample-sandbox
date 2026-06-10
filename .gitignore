@@ -1,6 +1,0 @@
-/build/
-/target/
-/fuzz/artifacts/
-/fuzz/corpus/
-/fuzz/target/
-/Utility/event/fuzz/artifacts/
