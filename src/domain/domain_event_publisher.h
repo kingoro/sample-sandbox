@@ -88,7 +88,7 @@ void domain_event_publisher_destroy(domain_event_publisher_t *publisher);
  * @param event_id 購読するDomain Event ID。
  * @param handler Event受信handler。
  * @param context handlerへ渡すcontext。
- * @return Event Utilityのresult code。
+ * @return Event Foundationのresult code。
  */
 ut_event_result_t domain_event_publisher_subscribe(domain_event_publisher_t *publisher, uint32_t event_id, ut_event_handler_t handler, void *context);
 
@@ -99,7 +99,7 @@ ut_event_result_t domain_event_publisher_subscribe(domain_event_publisher_t *pub
  * @param event_id 発行するDomain Event ID。
  * @param source Event発行元ID。
  * @param payload Queue内へ値copyするpayload。
- * @return Event Utilityのresult code。
+ * @return Event Foundationのresult code。
  *
  * payloadの所有権は移動せず、関数から戻った後に呼び出し元で破棄できる。
  */

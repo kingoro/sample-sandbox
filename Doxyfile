@@ -1,25 +1,28 @@
-PROJECT_NAME           = "Common Utility"
-PROJECT_BRIEF          = "Memory Buffer and C Utility specifications"
+PROJECT_NAME           = "Common Foundation"
+PROJECT_BRIEF          = "Memory Buffer and C Foundation specifications"
 OUTPUT_DIRECTORY       = build/docs/c-api
 INPUT                  = docs/c-api-main.md \
                          memory-buffer/include \
                          memory-buffer/src \
                          memory-buffer/examples \
                          memory-buffer/tests \
-                         Utility/event/include \
-                         Utility/event/src \
-                         Utility/event/examples \
-                         Utility/event/tests \
-                         Utility/event/fuzz \
-                         Utility/log/include \
-                         Utility/log/src \
-                         Utility/log/examples \
-                         Utility/log/tests \
-                         Utility/log/fuzz \
-                         Utility/byte \
-                         Utility/retry \
-                         Utility/id \
-                         Utility/thread_pool \
+                         foundation/event/include \
+                         foundation/event/src \
+                         foundation/event/examples \
+                         foundation/event/tests \
+                         foundation/event/fuzz \
+                         foundation/log/include \
+                         foundation/log/src \
+                         foundation/log/examples \
+                         foundation/log/tests \
+                         foundation/log/fuzz \
+                         foundation/byte \
+                         foundation/retry \
+                         foundation/id \
+                         foundation/thread_pool \
+                         foundation/time \
+                         platform/linux \
+                         service/time \
                          src
 FILE_PATTERNS          = *.h *.c *.md
 RECURSIVE              = YES

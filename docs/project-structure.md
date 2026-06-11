@@ -29,25 +29,30 @@
 │   ├── include/               # 利用者向けheaderと生成ABI manifest
 │   ├── examples/              # C callerの実行例
 │   └── docs/                  # 設計、API、品質、利用手順
-├── Utility/
+├── foundation/
 │   ├── event/
-│       ├── README_BEGINNER.md # Event駆動に不慣れなC開発者向け導入
-│       ├── include/           # 集約headerと責務別の公開header
-│       ├── src/               # QueueとDispatcherのC11実装
-│       ├── tests/             # C単体テスト
-│       ├── fuzz/              # C操作列fuzz harness
-│       └── docs/              # 設計、API、品質、利用手順
+│   │   ├── README_BEGINNER.md # Event駆動に不慣れなC開発者向け導入
+│   │   ├── include/           # 集約headerと責務別の公開header
+│   │   ├── src/               # QueueとDispatcherのC11実装
+│   │   ├── tests/             # C単体テスト
+│   │   ├── fuzz/              # C操作列fuzz harness
+│   │   └── docs/              # 設計、API、品質、利用手順
 │   ├── log/
-│       ├── README_BEGINNER.md # Application Logに不慣れな開発者向け導入
-│       ├── include/           # 集約headerと責務別の公開header
-│       ├── src/               # LoggerとConsole adapterのC11実装
-│       ├── tests/             # C単体テスト
-│       ├── fuzz/              # C操作列fuzz harness
-│       └── docs/              # 設計、API、品質、利用手順
+│   │   ├── README_BEGINNER.md # Application Logに不慣れな開発者向け導入
+│   │   ├── include/           # 集約headerと責務別の公開header
+│   │   ├── src/               # LoggerとConsole adapterのC11実装
+│   │   ├── tests/             # C単体テスト
+│   │   ├── fuzz/              # C操作列fuzz harness
+│   │   └── docs/              # 設計、API、品質、利用手順
 │   ├── byte/                  # Bounds付きendian明示reader/writer
 │   ├── retry/                 # Clock非依存retry policy/state
 │   ├── id/                    # uint32 request ID generator
-│   └── thread_pool/           # POSIX pthread固定長CPU job pool
+│   ├── thread_pool/           # POSIX pthread固定長CPU job pool
+│   └── time/                  # OS非依存UTC・duration・RFC3339変換
+├── platform/
+│   └── linux/                 # clock_gettime adapter
+├── service/
+│   └── time/                  # UTC同期状態とmonotonic補間
 ├── fuzz/
 │   ├── Cargo.toml             # cargo-fuzz専用の独立workspace
 │   ├── README.md              # fuzzの実行・解析手順
@@ -93,32 +98,43 @@ opaque context、Doxygen互換コメント、利用者向けの宣言を管理�
 直接編集しない。`make header-check`でRust側とのずれを検出し、更新が必要な場合は
 `make header`で再生成する。
 
-## Event Utility
+## Event Foundation
 
-`Utility/event`は、ドメイン非依存の固定長Event Queueと同期DispatcherをC11で
-実装する。独立配布libraryではなく、利用側buildへsourceを組み込むUtilityである。
+`foundation/event`は、ドメイン非依存の固定長Event Queueと同期DispatcherをC11で
+実装する。独立配布libraryではなく、利用側buildへsourceを組み込むFoundationである。
 heap、RTOS、I/Oへ依存せず、storageは呼出側が提供する。
 
-`make utility-test`でC単体テスト、`make utility-static-analysis`でGCC警告と
+`make foundation-test`でC単体テスト、`make foundation-static-analysis`でGCC警告と
 `-fanalyzer`を実行する。通常の`make test`と`make check`にも含まれる。
 
-## Log Utility
+## Log Foundation
 
-`Utility/log`は、Application LogをConsoleと固定長RAM Ringへ配送するC11基盤で
+`foundation/log`は、Application LogをConsoleと固定長RAM Ringへ配送するC11基盤で
 ある。実行時level切替、Recordの所有、上書き件数、read/dump、任意の排他callbackを
 提供する。EEPROM製品Log、USB/UART、通信、永続化は責務に含めない。
 
-`make utility-log-test`で単体テスト、`make utility-log-static-analysis`で
-GCC警告と`-fanalyzer`を実行する。全C Utilityは`make utility-test`と
-`make utility-static-analysis`でまとめて検証できる。
+`make foundation-log-test`で単体テスト、`make foundation-log-static-analysis`で
+GCC警告と`-fanalyzer`を実行する。全C Foundationは`make foundation-test`と
+`make foundation-static-analysis`でまとめて検証できる。
 
-## Small C Utilities
+## Small C Foundations
 
-`Utility/byte`はbounds付きBE/LE reader/writer、`Utility/retry`はclockやsleepを
-持たないretry状態、`Utility/id`は単一thread用request IDを提供する。
-`Utility/thread_pool`はPOSIX pthread向けの固定worker・固定queue CPU job poolで、
+`foundation/byte`はbounds付きBE/LE reader/writer、`foundation/retry`はclockやsleepを
+持たないretry状態、`foundation/id`は単一thread用request IDを提供する。
+`foundation/thread_pool`はPOSIX pthread向けの固定worker・固定queue CPU job poolで、
 I/O event dispatchには使用しない。各moduleは`include/src/tests/docs`を持ち、
 umbrella headerを公開入口とする。
+
+## Time
+
+`foundation/time`はOS/clock/heap/thread非依存のUTC、duration、monotonic tickと
+RFC3339 UTC変換を提供する。`platform/linux`は`CLOCK_MONOTONIC`と
+`CLOCK_REALTIME`をFoundation型へ変換し、`service/time`はUTCのavailability、
+synchronization、source、uncertainty、last sync tickを管理する。
+
+Timezone/IANA DB/DST、RTC device、NTP/PTP/GPS clientはそれぞれ外部service、
+driver、network層の責務である。timeout、retry、Event TimerはUTCではなく
+monotonic clockを使う。
 
 ## テストの配置
 
@@ -127,12 +143,15 @@ umbrella headerを公開入口とする。
 | `memory-buffer/src/buffer.rs` | Rust単体テスト | private helper、境界値、状態遷移 |
 | `memory-buffer/tests/c_abi.rs` | Rust結合テスト | 公開C ABI相当の契約 |
 | `memory-buffer/examples/c_usage.c` | CTest | C compiler、header、staticlibの実linkと実行 |
-| `Utility/event/tests/` | C単体テスト | Event QueueとDispatcherの契約 |
-| `Utility/log/tests/` | C単体テスト | Logger、RAM Ring、Consoleの契約 |
-| `Utility/byte/tests/` | C単体テスト | Bounds、endian、offset不変条件 |
-| `Utility/retry/tests/` | C単体テスト | 試行上限、backoff、overflow clamp |
-| `Utility/id/tests/` | C単体テスト | 予約値0とwrap |
-| `Utility/thread_pool/tests/` | C単体テスト | 並行実行、queue、shutdown |
+| `foundation/event/tests/` | C単体テスト | Event QueueとDispatcherの契約 |
+| `foundation/log/tests/` | C単体テスト | Logger、RAM Ring、Consoleの契約 |
+| `foundation/byte/tests/` | C単体テスト | Bounds、endian、offset不変条件 |
+| `foundation/retry/tests/` | C単体テスト | 試行上限、backoff、overflow clamp |
+| `foundation/id/tests/` | C単体テスト | 予約値0とwrap |
+| `foundation/thread_pool/tests/` | C単体テスト | 並行実行、queue、shutdown |
+| `foundation/time/tests/` | C単体テスト | UTC変換、duration、Gregorian/RFC3339 |
+| `platform/linux/tests/` | C単体テスト | clock失敗、不正timespec、overflow |
+| `service/time/tests/` | C単体テスト | 同期状態、逆行、未同期、overflow |
 | `fuzz/fuzz_targets/` | cargo-fuzz | 任意のAPI操作列とsanitizer検査 |
 
 テスト戦略と品質基準は
@@ -147,13 +166,16 @@ umbrella headerを公開入口とする。
 | --- | --- |
 | `target/` | 通常のCargo build、test、Rustdoc |
 | `build/memory-buffer/` | CMake buildとC結合実行ファイル |
-| `build/utility-event/` | Event Utility CMake build |
-| `build/utility-log/` | Log Utility CMake build |
-| `build/utility-byte/` | Byte Utility CMake build |
-| `build/utility-retry/` | Retry Utility CMake build |
-| `build/utility-id/` | ID Utility CMake build |
-| `build/utility-thread-pool/` | Thread Pool Utility CMake build |
-| `build/reports/` | coverage、CC、MIのHTMLレポート |
+| `build/foundation-event/` | Event Foundation CMake build |
+| `build/foundation-log/` | Log Foundation CMake build |
+| `build/foundation-byte/` | Byte Foundation CMake build |
+| `build/foundation-retry/` | Retry Foundation CMake build |
+| `build/foundation-id/` | ID Foundation CMake build |
+| `build/foundation-thread-pool/` | Thread Pool Foundation CMake build |
+| `build/foundation-time/` | Time Foundation CMake build |
+| `build/platform-linux/` | Linux Time Platform CMake build |
+| `build/service-time/` | Time Service CMake build |
+| `build/reports/` | Rust/Cのunit・integration coverage、CC、MIレポート |
 | `build/docs/c-api/` | Doxygenで生成する全C API・test仕様書 |
 | `fuzz/target/` | fuzz targetのbuild成果物 |
 | `fuzz/corpus/` | libFuzzerが学習した入力 |

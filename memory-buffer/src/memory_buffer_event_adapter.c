@@ -5,10 +5,10 @@
 #include "memory_buffer_event_adapter.h"
 
 /**
- * Memory Buffer resultをEvent Utility resultへ対応付ける。
+ * Memory Buffer resultをEvent Foundation resultへ対応付ける。
  *
  * @param result Memory Buffer result。
- * @return Event Utility result。
+ * @return Event Foundation result。
  */
 static ut_event_result_t map_result(mb_result_t result)
 {
@@ -32,7 +32,7 @@ static ut_event_result_t map_result(mb_result_t result)
  * @param pool_context mb_context_tへのpointer。
  * @param capacity 要求容量。
  * @param out_handle handle格納先。
- * @return Event Utility result。
+ * @return Event Foundation result。
  */
 static ut_event_result_t adapter_alloc(
     void *pool_context,
@@ -50,7 +50,7 @@ static ut_event_result_t adapter_alloc(
  *
  * @param pool_context mb_context_tへのpointer。
  * @param handle 解放handle。
- * @return Event Utility result。
+ * @return Event Foundation result。
  */
 static ut_event_result_t adapter_free(
     void *pool_context,
@@ -69,7 +69,7 @@ static ut_event_result_t adapter_free(
  * @param offset 書込みoffset。
  * @param source copy元。
  * @param length copy長。
- * @return Event Utility result。
+ * @return Event Foundation result。
  */
 static ut_event_result_t adapter_write(
     void *pool_context,
@@ -94,7 +94,7 @@ static ut_event_result_t adapter_write(
  * @param offset 読取りoffset。
  * @param destination copy先。
  * @param length copy長。
- * @return Event Utility result。
+ * @return Event Foundation result。
  */
 static ut_event_result_t adapter_read(
     void *pool_context,

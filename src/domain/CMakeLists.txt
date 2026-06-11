@@ -9,13 +9,13 @@ set(DOMAIN_COMMON_SOURCES
     domain_workflow_loader.c
     domain_service.c
     ../unit/unit_mock.c
-    ../../Utility/event/src/utility_event_publisher.c
-    ../../Utility/event/src/utility_event_queue.c
-    ../../Utility/event/src/utility_event_dispatcher.c
-    ../../Utility/event/src/utility_event_state_machine.c
-    ../../Utility/event/src/utility_event_trace.c
-    ../../Utility/log/src/utility_logger.c
-    ../../Utility/log/src/utility_log_console.c)
+    ../../foundation/event/src/utility_event_publisher.c
+    ../../foundation/event/src/utility_event_queue.c
+    ../../foundation/event/src/utility_event_dispatcher.c
+    ../../foundation/event/src/utility_event_state_machine.c
+    ../../foundation/event/src/utility_event_trace.c
+    ../../foundation/log/src/utility_logger.c
+    ../../foundation/log/src/utility_log_console.c)
 
 add_executable(
     domain_workflow_tests
@@ -27,8 +27,8 @@ target_include_directories(
     PRIVATE
         .
         ../unit
-        ../../Utility/event/include
-        ../../Utility/log/include)
+        ../../foundation/event/include
+        ../../foundation/log/include)
 target_compile_definitions(
     domain_workflow_tests
     PRIVATE

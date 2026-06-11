@@ -48,8 +48,8 @@ def percent(covered: int, total: int) -> float:
 
 def c_module_name(file_name: str) -> str:
     parts = Path(file_name).parts
-    if len(parts) >= 2 and parts[0] == "Utility":
-        return parts[1]
+    if len(parts) >= 2 and parts[0] in ("foundation", "platform", "service"):
+        return f"{parts[0]}/{parts[1]}"
     return parts[0] if parts else "unknown"
 
 
@@ -193,16 +193,26 @@ Branch: {row["branch_percent"]:.2f}% ({row["branches_covered"]}/{row["branches_t
 
 
 def generate_c_coverage(
-    output: Path, html_output: Path, test_status: str, inputs: list[Path]
+    output: Path,
+    html_output: Path,
+    test_status: str,
+    kind: str,
+    inputs: list[Path],
 ) -> int:
     rows, totals = c_source_rows(inputs)
     modules = c_module_rows(rows)
+    minimum = (
+        UNIT_BRANCH_MIN if kind == "unit" else INTEGRATION_BRANCH_MIN
+    )
+    kind_label = "単体" if kind == "unit" else "結合"
     summary_rows = [
         {key: value for key, value in row.items() if key != "line_details"}
         for row in rows
     ]
     summary = {
         "test_status": test_status,
+        "kind": kind,
+        "branch_minimum": minimum,
         "tests_total": 1,
         "tests_passed": int(test_status == "passed"),
         **totals,
@@ -231,7 +241,7 @@ def generate_c_coverage(
         )
     module_table_rows = []
     for module in modules:
-        module_ok = module["branch_percent"] >= UNIT_BRANCH_MIN
+        module_ok = module["branch_percent"] >= minimum
         module_table_rows.append(
             "<tr><td>{module}</td><td>{lc}/{lt}</td><td>{lp:.2f}%</td>"
             "<td>{bc}/{bt}</td><td class='{css}'>{bp:.2f}%</td>"
@@ -248,23 +258,23 @@ def generate_c_coverage(
             )
         )
     branch_ok = all(
-        module["branch_percent"] >= UNIT_BRANCH_MIN for module in modules
+        module["branch_percent"] >= minimum for module in modules
     )
     test_ok = test_status == "passed"
     html_output.write_text(
         f"""<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>C Utility Coverage</title>
+<html lang="ja"><head><meta charset="utf-8"><title>C Foundation Coverage</title>
 <style>
 body{{font-family:sans-serif;margin:2rem;color:#222}}table{{border-collapse:collapse;width:100%}}
 th,td{{border:1px solid #bbb;padding:.45rem;text-align:left}}th{{background:#eee}}
 .ok{{color:#176b2c;font-weight:bold}}.ng{{color:#a40000;font-weight:bold}}
 </style></head><body>
-<h1>C Utility単体テスト・Coverage</h1>
+<h1>C Foundation{kind_label}テスト・Coverage</h1>
 <p>テスト: <span class="{"ok" if test_ok else "ng"}">{html.escape(test_status.upper())}</span></p>
 <p>全体Line coverage: {totals["line_percent"]:.2f}%（参考値）</p>
 <p>全体Branch coverage: {totals["branch_percent"]:.2f}%（参考値）</p>
-<p>合否はUtility module単位で判定する。各moduleのBranch coverageが
-{UNIT_BRANCH_MIN:.0f}%以上であること。</p>
+<p>合否はFoundation module単位で判定する。各moduleのBranch coverageが
+{minimum:.0f}%以上であること。</p>
 <table><thead><tr><th>Module</th><th>Lines</th><th>Line %</th>
 <th>Branches</th><th>Branch %</th><th>判定</th></tr></thead><tbody>
 {"".join(module_table_rows)}
@@ -278,18 +288,22 @@ th,td{{border:1px solid #bbb;padding:.45rem;text-align:left}}th{{background:#eee
         encoding="utf-8",
     )
     print(
-        f"C Utility line: {totals['line_percent']:.2f}% [参考値]"
+        f"C Foundation {kind} line: "
+        f"{totals['line_percent']:.2f}% [参考値]"
     )
-    print(f"C Utility branch total: {totals['branch_percent']:.2f}% [参考値]")
+    print(
+        f"C Foundation {kind} branch total: "
+        f"{totals['branch_percent']:.2f}% [参考値]"
+    )
     for module in modules:
-        module_ok = module["branch_percent"] >= UNIT_BRANCH_MIN
+        module_ok = module["branch_percent"] >= minimum
         print(
-            f"C Utility {module['module']} branch: "
+            f"C Foundation {kind} {module['module']} branch: "
             f"{module['branch_percent']:.2f}% / "
-            f"単体共通基準 {UNIT_BRANCH_MIN:.2f}% "
+            f"{kind_label}共通基準 {minimum:.2f}% "
             f"[{'OK' if module_ok else 'NG'}]"
         )
-    print(f"C Utility test: {test_status.upper()}")
+    print(f"C Foundation {kind} test: {test_status.upper()}")
     return int(not (branch_ok and test_ok))
 
 
@@ -392,22 +406,34 @@ code{background:#eee;padding:.15rem .3rem}
 
 
 def generate_index(
-    output: Path, unit: Path, integration: Path, c_coverage: Path
+    output: Path,
+    unit: Path,
+    integration: Path,
+    c_unit: Path,
+    c_integration: Path,
 ) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     unit_value = branch_percent(unit)
     integration_value = branch_percent(integration)
-    c_summary = load_json(c_coverage)
-    c_test_status = str(c_summary["test_status"]).upper()
-    c_line_value = float(c_summary["line_percent"])
-    c_branch_value = float(c_summary["branch_percent"])
-    c_module_lines = "<br>".join(
+    c_unit_summary = load_json(c_unit)
+    c_integration_summary = load_json(c_integration)
+    c_unit_status = str(c_unit_summary["test_status"]).upper()
+    c_integration_status = str(c_integration_summary["test_status"]).upper()
+    c_unit_module_lines = "<br>".join(
         "{module}: {branch:.2f}%（基準 {minimum:.0f}%）".format(
             module=html.escape(str(module["module"])),
             branch=float(module["branch_percent"]),
             minimum=UNIT_BRANCH_MIN,
         )
-        for module in c_summary.get("modules", [])
+        for module in c_unit_summary.get("modules", [])
+    )
+    c_integration_module_lines = "<br>".join(
+        "{module}: {branch:.2f}%（基準 {minimum:.0f}%）".format(
+            module=html.escape(str(module["module"])),
+            branch=float(module["branch_percent"]),
+            minimum=INTEGRATION_BRANCH_MIN,
+        )
+        for module in c_integration_summary.get("modules", [])
     )
     output.write_text(
         f"""<!doctype html>
@@ -417,17 +443,18 @@ body{{font-family:sans-serif;margin:2rem;color:#222}}.cards{{display:flex;gap:1r
 .card{{border:1px solid #bbb;border-radius:.5rem;padding:1rem;min-width:15rem}}
 .value{{font-size:2rem;font-weight:bold}}a{{color:#075ea8}}
 </style></head><body>
-<h1>共通Utility 品質レポート</h1>
+<h1>共通Foundation 品質レポート</h1>
 <div class="cards">
 <section class="card"><h2>単体テスト C1</h2><div class="value">{unit_value:.2f}%</div>
 <p>基準: {UNIT_BRANCH_MIN:.0f}%以上</p><a href="coverage/unit/html/index.html">詳細を見る</a></section>
 <section class="card"><h2>結合テスト C1</h2><div class="value">{integration_value:.2f}%</div>
 <p>基準: {INTEGRATION_BRANCH_MIN:.0f}%以上</p><a href="coverage/integration/html/index.html">詳細を見る</a></section>
-<section class="card"><h2>C Utility単体テスト</h2><div class="value">{c_test_status}</div>
-<p>全体Line: {c_line_value:.2f}%（参考値）<br>
-全体Branch: {c_branch_value:.2f}%（参考値）</p>
-<p>{c_module_lines}</p>
-<a href="coverage/utility-c/html/index.html">Cテスト・Coverageを見る</a></section>
+<section class="card"><h2>C Foundation単体テスト</h2><div class="value">{c_unit_status}</div>
+<p>{c_unit_module_lines}</p>
+<a href="coverage/foundation-c/unit/html/index.html">C単体Coverageを見る</a></section>
+<section class="card"><h2>C Foundation結合テスト</h2><div class="value">{c_integration_status}</div>
+<p>{c_integration_module_lines}</p>
+<a href="coverage/foundation-c/integration/html/index.html">C結合Coverageを見る</a></section>
 <section class="card"><h2>静的メトリクス</h2><p>CC上限: {CC_MAX:.0f}<br>MI下限: {MI_MIN:.0f}</p>
 <a href="metrics/index.html">CC・MI一覧を見る</a></section>
 <section class="card"><h2>C API・Test仕様書</h2>
@@ -457,13 +484,17 @@ def main() -> int:
     c_coverage.add_argument(
         "--test-status", choices=("passed", "failed"), required=True
     )
+    c_coverage.add_argument(
+        "--kind", choices=("unit", "integration"), required=True
+    )
     c_coverage.add_argument("inputs", nargs="+", type=Path)
 
     index = subparsers.add_parser("index")
     index.add_argument("--output", type=Path, required=True)
     index.add_argument("--unit", type=Path, required=True)
     index.add_argument("--integration", type=Path, required=True)
-    index.add_argument("--c-coverage", type=Path, required=True)
+    index.add_argument("--c-unit", type=Path, required=True)
+    index.add_argument("--c-integration", type=Path, required=True)
 
     args = parser.parse_args()
     if args.command == "check-coverage":
@@ -472,10 +503,14 @@ def main() -> int:
         return generate_metrics(args.output, args.sources)
     if args.command == "c-coverage":
         return generate_c_coverage(
-            args.output, args.html, args.test_status, args.inputs
+            args.output, args.html, args.test_status, args.kind, args.inputs
         )
     generate_index(
-        args.output, args.unit, args.integration, args.c_coverage
+        args.output,
+        args.unit,
+        args.integration,
+        args.c_unit,
+        args.c_integration,
     )
     return 0
 

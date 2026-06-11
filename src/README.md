@@ -46,7 +46,7 @@ flowchart TD
     Sequence["Sequence Runner<br/>State Machine"]
     Workflow["Workflow定義<br/>Scenario / Sequence / Step"]
     Publisher["Domain Event Publisher"]
-    UtilityPublisher["Event Utility Publisher<br/>payload copy / Queue / Dispatcher"]
+    UtilityPublisher["Event Foundation Publisher<br/>payload copy / Queue / Dispatcher"]
     Units["Mock Unit 1..10<br/>worker thread"]
 
     Control -->|"write_input(feature, condition, request_id)"| Service
@@ -69,7 +69,7 @@ flowchart TD
 
 Domain Event PublisherはDomain固有のEvent IDとpayload変換を担当する。Queue、
 payload値copy、排他、Dispatcher、budget配送は
-`Utility/event`の`ut_event_publisher_t`を使用する。
+`foundation/event`の`ut_event_publisher_t`を使用する。
 
 ## Workflow階層
 
@@ -184,7 +184,7 @@ sequenceDiagram
     participant C as Control
     participant D as DomainService
     participant P as DomainEventPublisher
-    participant Q as Event Utility Publisher
+    participant Q as Event Foundation Publisher
     participant SQ as SequenceRunner
     participant SC as ScenarioRunner
     participant F as FeatureRunner
@@ -232,7 +232,7 @@ stateDiagram-v2
     RUNNING --> ERROR: FAIL
 ```
 
-これはEvent Utilityのflat State Machineを3階層に配置し、PublisherのEventで接続した
+これはEvent Foundationのflat State Machineを3階層に配置し、PublisherのEventで接続した
 構成である。親子状態を1つのState Machine tableで表す専用HSMではないが、子Runnerの
 終端Eventを親Runnerが受信するため、実行モデルとして階層的に振る舞う。
 
@@ -345,7 +345,7 @@ flowchart LR
     Callback --> Publisher
 ```
 
-現在のMock Unitは処理関数名をLog Utilityへ出力し、約500ミリ秒待って完了する。
+現在のMock Unitは処理関数名をLog Foundationへ出力し、約500ミリ秒待って完了する。
 Unit 1から10はそれぞれ独立したworker threadを持つ。
 
 ## 実行方法
@@ -396,7 +396,7 @@ timeout判定を進めるEvent Loopであり、Unit Outputを調べるpolling処
 
 ### thread境界
 
-Unit callbackはUnit worker thread上で動く。Event Utility Publisherはpayloadを固定長
+Unit callbackはUnit worker thread上で動く。Event Foundation Publisherはpayloadを固定長
 slotへ値copyし、lock callbackでQueueを保護する。Runner handlerはControl thread上の
 dispatch中に同期実行されるため、State MachineをUnit workerから並行操作しない。
 

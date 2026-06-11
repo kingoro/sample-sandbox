@@ -32,7 +32,7 @@ flowchart TD
         Transport["Transport<br/>message化・要求応答"]
         Runtime["Communication Runtime<br/>thread・epoll・wakeup"]
         IO["I/O Adapter<br/>TCP / UART / CAN / SPI"]
-        Event["Event Utility<br/>Queue / Publisher / Dispatcher"]
+        Event["Event Foundation<br/>Queue / Publisher / Dispatcher"]
     end
 
     Kernel["Linux Kernel / Device Driver"]
@@ -76,7 +76,7 @@ flowchart TD
 | Transport | message境界、要求応答、timeout、retry、分割・再構成 | 機器の業務的な意味 |
 | Communication Runtime | 送受信thread、`epoll`、wakeup、shutdown | Protocol固有Commandの解釈 |
 | I/O Adapter | `socket`、`read`、`write`、`termios`、SocketCANなど | Unit状態、Domain状態 |
-| Event Utility | 値copy Queue、同期Dispatcher、Timer、Metrics | thread生成、I/O、非同期handler |
+| Event Foundation | 値copy Queue、同期Dispatcher、Timer、Metrics | thread生成、I/O、非同期handler |
 
 単純なGPIOやPWM機器では、DriverからHALまたはI/O Adapterを直接利用してよい。
 すべての機器へProtocolやTransportを形式的に挟む必要はない。
@@ -305,9 +305,9 @@ Communication Runtimeは以下を所有する。
 - `eventfd`などによるApplication threadの起床
 - shutdown時の送受信停止順序
 
-## Event Utilityの適用
+## Event Foundationの適用
 
-既存のEvent Utilityは受信結果を上位へ配送する仕組みとして利用できる。
+既存のEvent Foundationは受信結果を上位へ配送する仕組みとして利用できる。
 
 - `ut_event_publisher_publish_copy()`で小さな結果payloadを値copyする
 - Publisherへlock/unlock callbackを設定し、I/O threadからpublish可能にする
@@ -316,8 +316,8 @@ Communication Runtimeは以下を所有する。
 - budgetを指定し、Eventが多い場合も他のApplication処理へ制御を戻す
 - Queue満杯、未購読、Contract違反をMetricsで観測する
 
-Event Utilityは意図的に次の機能を所有しないため、これらを
-`Utility/event`へ追加しない。
+Event Foundationは意図的に次の機能を所有しないため、これらを
+`foundation/event`へ追加しない。
 
 - thread、Mutex、Semaphoreの生成
 - Socket、UART、CAN、SPIのopenと送受信
@@ -326,7 +326,7 @@ Event Utilityは意図的に次の機能を所有しないため、これらを
 - Application threadを起床するOS固有機構
 
 これらは`communication/runtime`またはApplication Adapterの責務とする。
-Event Utility本体の変更は現時点では不要である。
+Event Foundation本体の変更は現時点では不要である。
 
 小さな固定長応答や状態通知にはPublisherを使う。大きな可変長payloadを非同期配送する
 場合は、既存`memory-buffer`へpayloadを保存し、Event Buffer Envelopeでhandleの

@@ -1,13 +1,16 @@
-# Common Utility Development
+# Common Foundation Development
 
-このrepositoryでは、共通Utilityをドメイン機能から分離し、実装、テスト、設計資料を
+このrepositoryでは、共通Foundationをドメイン機能から分離し、実装、テスト、設計資料を
 同じ単位で管理する。
 
 - [Memory Buffer Library](memory-buffer/README.md)
-- [C Event Utility](Utility/event/README.md)
-- [C経験者向け はじめてのEvent Utility](Utility/event/README_BEGINNER.md)
-- [C Log Utility](Utility/log/README.md)
-- [はじめてのLog Utility](Utility/log/README_BEGINNER.md)
+- [C Event Foundation](foundation/event/README.md)
+- [C経験者向け はじめてのEvent Foundation](foundation/event/README_BEGINNER.md)
+- [C Log Foundation](foundation/log/README.md)
+- [はじめてのLog Foundation](foundation/log/README_BEGINNER.md)
+- [Time Foundation](foundation/time/README.md)
+- [Linux Time Platform](platform/linux/README.md)
+- [Time Service](service/time/README.md)
 
 ## Memory Buffer Library
 
@@ -18,12 +21,14 @@
 C APIの利用者にはopaque handleだけを公開する。ヒープを使用せず、境界検査、
 解放済みhandleの拒否、ポインタ貸出中の競合防止をライブラリ側で行う。
 
-## C基盤Utility
+## C Foundation
 
-`Utility/event`は固定長Event Queueと同期Dispatcherを提供する。
-`Utility/log`はApplication Logのlevel制御、Console出力、固定長RAM Ringへの
+`foundation/event`は固定長Event Queueと同期Dispatcherを提供する。
+`foundation/log`はApplication Logのlevel制御、Console出力、固定長RAM Ringへの
 蓄積と実行中dumpを提供する。どちらも製品domain、heap、通信へ依存せず、
 別の組み込みLinux製品へsource単位で移植できる構成とする。
+`foundation/time`はUTC/duration/monotonic tickの純粋変換、
+`platform/linux`はLinux clock取得、`service/time`はUTC同期状態を担当する。
 
 ## 主な特徴
 
@@ -152,8 +157,8 @@ Miriとfuzzも実行する。詳細な対象、tool、レポートの読み方�
 - [品質ゲートとHTMLレポート](memory-buffer/docs/quality.md)
 - [cbindgen・Miri・fuzz・cross buildによる高度検証](memory-buffer/docs/advanced-verification.md)
 - [fuzz testの使い方と検査内容](fuzz/README.md)
-- [Log Utility概要](Utility/log/README.md)
-- [Log Utility初心者向け導入](Utility/log/README_BEGINNER.md)
+- [Log Foundation概要](foundation/log/README.md)
+- [Log Foundation初心者向け導入](foundation/log/README_BEGINNER.md)
 
 全C API、production source、単体テスト、fuzz harnessのDoxygen仕様書は
 `make c-docs`で`build/docs/c-api/html/index.html`へ生成する。

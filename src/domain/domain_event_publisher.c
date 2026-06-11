@@ -1,6 +1,6 @@
 /**
  * @file domain_event_publisher.c
- * @brief Utility Event PublisherへDomain Eventを接続するadapter実装。
+ * @brief Event Foundation PublisherへDomain Eventを接続するadapter実装。
  */
 #include "domain_event_publisher.h"
 
@@ -16,7 +16,7 @@
  * Domain Event Publisher内部状態。
  */
 struct domain_event_publisher {
-    /** payload値copyと同期配送を行うEvent Utility Publisher。 */
+    /** payload値copyと同期配送を行うEvent Foundation Publisher。 */
     ut_event_publisher_t publisher;
     /** Event Queue storage。 */
     ut_event_t event_storage[DOMAIN_EVENT_QUEUE_CAPACITY];
@@ -32,7 +32,7 @@ struct domain_event_publisher {
 };
 
 /**
- * Event Utility Publisher共有領域へ入る。
+ * Event Foundation Publisher共有領域へ入る。
  *
  * @param context pthread_mutex_tへのポインタ。
  */
@@ -42,7 +42,7 @@ static void domain_event_lock(void *context)
 }
 
 /**
- * Event Utility Publisher共有領域から出る。
+ * Event Foundation Publisher共有領域から出る。
  *
  * @param context pthread_mutex_tへのポインタ。
  */

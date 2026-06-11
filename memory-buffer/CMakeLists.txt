@@ -34,13 +34,13 @@ add_executable(
     memory_buffer_event_integration
     tests/test_event_buffer_integration.c
     src/memory_buffer_event_adapter.c
-    ../Utility/event/src/utility_event_buffer.c
-    ../Utility/event/src/utility_event_dispatcher.c)
+    ../foundation/event/src/utility_event_buffer.c
+    ../foundation/event/src/utility_event_dispatcher.c)
 target_include_directories(
     memory_buffer_event_integration
     PRIVATE
         include
-        ../Utility/event/include)
+        ../foundation/event/include)
 target_compile_features(memory_buffer_event_integration PRIVATE c_std_11)
 target_link_libraries(
     memory_buffer_event_integration

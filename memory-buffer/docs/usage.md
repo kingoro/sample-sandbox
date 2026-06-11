@@ -100,7 +100,7 @@ if (mb_map(&buffer_context, handle, &data, &capacity) == MB_OK) {
 
 map pointerは所有権の移譲ではない。`mb_unmap`後に保存・参照してはならない。
 
-## Event Utilityへ接続する
+## Event Foundationへ接続する
 
 ```c
 #include "memory_buffer_event_adapter.h"

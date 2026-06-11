@@ -201,12 +201,16 @@ make extended-check
 | Command | 内容 | 主な依存 |
 | --- | --- | --- |
 | `cargo test --workspace` | Rust単体・結合テスト | stable Rust |
-| `make test` | Rust test、C結合、全C Utility単体テスト | Rust、CMake、C compiler |
-| `make utility-test` | Event/Log Utilityの全C単体テスト | CMake、C compiler |
-| `make utility-log-test` | Log UtilityのC単体テスト | CMake、C compiler |
+| `make test` | Rust test、C結合、全C Foundation単体テスト | Rust、CMake、C compiler |
+| `make foundation-test` | 全C Foundationの単体テスト | CMake、C compiler |
+| `make foundation-log-test` | Log FoundationのC単体テスト | CMake、C compiler |
+| `make foundation-time-test` | Time FoundationのC単体テスト | CMake、C compiler |
+| `make platform-linux-test` | Linux Time adapterのC単体テスト | CMake、C compiler |
+| `make service-time-test` | Time ServiceのC単体テスト | CMake、C compiler |
 | `make static-analysis` | rustfmt、Clippy、GCC `-fanalyzer` | Clippy、GCC |
 | `make c-docs-check` | 全C headerのDoxygenコメント契約検査 | Python |
 | `make c-docs` | 全C API、source、test、fuzz仕様書生成 | Doxygen |
+| `make coverage` | Rust/Cのunit・integration branch coverage検査 | llvm-cov、gcov |
 | `make header-check` | Rust定義と生成headerの差分検査 | cbindgen |
 | `make coverage` | 単体/結合branch coverageと閾値検査 | nightly、cargo-llvm-cov、Python |
 | `make metrics` | CC、認知的複雑度、MIのHTML生成 | Python、rust-code-analysis-cli |
