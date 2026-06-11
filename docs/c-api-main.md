@@ -13,6 +13,10 @@ harnessからDoxygenで自動生成する。
 - Log Utility公開APIとproduction実装
 - Log Utility C単体テスト
 - Log Utility fuzz harness
+- Byte Utility公開API、production実装、C単体テスト
+- Retry Utility公開API、production実装、C単体テスト
+- ID Utility公開API、production実装、C単体テスト
+- Thread Pool Utility公開API、production実装、C単体テスト
 
 header内のmacro、型、enum値、field、関数宣言はDoxygenコメントを必須とする。
 関数契約には、引数、戻り値、所有権、寿命、thread safetyを必要に応じて記載する。

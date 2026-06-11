@@ -1,0 +1,16 @@
+# Thread Pool Architecture
+
+Mutexでring queueとstateを保護し、condition variableでworkerを起床する。
+Drainはqueueが空になるまで処理し、immediateはpending queueを破棄する。実行中の
+callbackは中断しない。破棄したjobのcontext所有権は呼出側に残る。
+
+Shutdownはqueue mutexでsubmitと直列化する。Join/destroyはproducer停止後だけ
+実行する管理操作であり、submitとの並行実行は対応しない。`joined_workers`で
+join済みprefixを記録し、pthread_join失敗後は最初の未join workerから再開する。
+Worker作成途中の失敗でも同じ進捗を保持し、cleanup joinに失敗したpoolはSTOPPING
+状態のまま呼出側がjoin/destroyで回収できる。管理操作をworker callbackから
+呼ぶことは禁止する。
+
+Mutexとconditionの初期化状態は別fieldで管理する。Destroyはconditionを先に破棄し、
+成功したfieldだけをfalseへ更新してからmutexを処理する。Condition init失敗後の
+mutex cleanup失敗もJOINED状態で保持し、destroy再試行で回収する。

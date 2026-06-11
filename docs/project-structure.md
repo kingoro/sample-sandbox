@@ -37,13 +37,17 @@
 │       ├── tests/             # C単体テスト
 │       ├── fuzz/              # C操作列fuzz harness
 │       └── docs/              # 設計、API、品質、利用手順
-│   └── log/
+│   ├── log/
 │       ├── README_BEGINNER.md # Application Logに不慣れな開発者向け導入
 │       ├── include/           # 集約headerと責務別の公開header
 │       ├── src/               # LoggerとConsole adapterのC11実装
 │       ├── tests/             # C単体テスト
 │       ├── fuzz/              # C操作列fuzz harness
 │       └── docs/              # 設計、API、品質、利用手順
+│   ├── byte/                  # Bounds付きendian明示reader/writer
+│   ├── retry/                 # Clock非依存retry policy/state
+│   ├── id/                    # uint32 request ID generator
+│   └── thread_pool/           # POSIX pthread固定長CPU job pool
 ├── fuzz/
 │   ├── Cargo.toml             # cargo-fuzz専用の独立workspace
 │   ├── README.md              # fuzzの実行・解析手順
@@ -108,6 +112,14 @@ heap、RTOS、I/Oへ依存せず、storageは呼出側が提供する。
 GCC警告と`-fanalyzer`を実行する。全C Utilityは`make utility-test`と
 `make utility-static-analysis`でまとめて検証できる。
 
+## Small C Utilities
+
+`Utility/byte`はbounds付きBE/LE reader/writer、`Utility/retry`はclockやsleepを
+持たないretry状態、`Utility/id`は単一thread用request IDを提供する。
+`Utility/thread_pool`はPOSIX pthread向けの固定worker・固定queue CPU job poolで、
+I/O event dispatchには使用しない。各moduleは`include/src/tests/docs`を持ち、
+umbrella headerを公開入口とする。
+
 ## テストの配置
 
 | 場所 | 種類 | 目的 |
@@ -117,6 +129,10 @@ GCC警告と`-fanalyzer`を実行する。全C Utilityは`make utility-test`と
 | `memory-buffer/examples/c_usage.c` | CTest | C compiler、header、staticlibの実linkと実行 |
 | `Utility/event/tests/` | C単体テスト | Event QueueとDispatcherの契約 |
 | `Utility/log/tests/` | C単体テスト | Logger、RAM Ring、Consoleの契約 |
+| `Utility/byte/tests/` | C単体テスト | Bounds、endian、offset不変条件 |
+| `Utility/retry/tests/` | C単体テスト | 試行上限、backoff、overflow clamp |
+| `Utility/id/tests/` | C単体テスト | 予約値0とwrap |
+| `Utility/thread_pool/tests/` | C単体テスト | 並行実行、queue、shutdown |
 | `fuzz/fuzz_targets/` | cargo-fuzz | 任意のAPI操作列とsanitizer検査 |
 
 テスト戦略と品質基準は
@@ -133,6 +149,10 @@ GCC警告と`-fanalyzer`を実行する。全C Utilityは`make utility-test`と
 | `build/memory-buffer/` | CMake buildとC結合実行ファイル |
 | `build/utility-event/` | Event Utility CMake build |
 | `build/utility-log/` | Log Utility CMake build |
+| `build/utility-byte/` | Byte Utility CMake build |
+| `build/utility-retry/` | Retry Utility CMake build |
+| `build/utility-id/` | ID Utility CMake build |
+| `build/utility-thread-pool/` | Thread Pool Utility CMake build |
 | `build/reports/` | coverage、CC、MIのHTMLレポート |
 | `build/docs/c-api/` | Doxygenで生成する全C API・test仕様書 |
 | `fuzz/target/` | fuzz targetのbuild成果物 |

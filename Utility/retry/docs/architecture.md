@@ -1,0 +1,4 @@
+# Retry Architecture
+
+Policyをstateへcopyするため、初期化後に元policyの寿命へ依存しない。delay単位と
+実待機は呼出側が決め、指数計算は上限値を使ってoverflow前にclampする。

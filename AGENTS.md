@@ -37,3 +37,22 @@
 - Log Utility変更後は`make utility-log-test`と
   `make utility-log-static-analysis`を実行する。
 - 完了前に`make check`を実行する。
+
+## Multi-Agent Workflow
+
+- コード実装を伴う作業では、Main AgentがImplementation AgentとReview Agentを
+  分けて作業を進める。
+- Main Agentは要求、設計上の制約、担当fileまたはmodule、必要なtestを
+  Implementation Agentへ明示する。
+- Implementation Agentは割り当てられた範囲を実装し、変更file、設計判断、
+  実行したtestと結果をMain Agentへ報告する。
+- 各Agentは同じrepositoryで他のAgentや利用者が作業している前提とし、
+  自分が作成していない変更をrevertしない。
+- Implementation Agentの作業後、別のReview Agentが要求と差分を独立して確認する。
+- Review Agentは原則としてfileを変更せず、bug、仕様違反、回帰risk、
+  thread safety、所有権、寿命、architecture違反、test不足を確認する。
+- Review指摘は重要度、file、line、理由、必要な修正を含め、重要度順に報告する。
+- Main AgentはReview指摘の採否を判断し、必要な修正をImplementation Agentへ戻すか、
+  自身で統合修正する。
+- 指摘修正後は影響範囲のtestとrepository規則で要求された品質gateを再実行する。
+- Main Agentは最終差分、Review結果、test結果を確認し、完了可否に責任を持つ。

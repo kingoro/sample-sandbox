@@ -1,8 +1,12 @@
-.PHONY: help check extended-check test domain-test utility-test utility-event-test utility-log-test utility-event-examples utility-log-examples unit-mock-sample domain-service-sample docs rust-docs c-docs c-docs-check header header-check static-analysis domain-static-analysis utility-static-analysis utility-log-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-event-fuzz-smoke utility-log-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
+.PHONY: help check extended-check test domain-test utility-test utility-event-test utility-log-test utility-byte-test utility-retry-test utility-id-test utility-thread-pool-test utility-event-examples utility-log-examples unit-mock-sample domain-service-sample docs rust-docs c-docs c-docs-check header header-check static-analysis domain-static-analysis utility-static-analysis utility-log-static-analysis utility-byte-static-analysis utility-retry-static-analysis utility-id-static-analysis utility-thread-pool-static-analysis coverage metrics quality quality-report cppcheck miri fuzz-smoke utility-fuzz-smoke utility-event-fuzz-smoke utility-log-fuzz-smoke utility-fuzz portable-check mcu-check docker-ready docker-build docker-shell docker-test docker-check docker-extended-check clean
 
 BUILD_DIR ?= build/memory-buffer
 UTILITY_BUILD_DIR ?= build/utility-event
 UTILITY_LOG_BUILD_DIR ?= build/utility-log
+UTILITY_BYTE_BUILD_DIR ?= build/utility-byte
+UTILITY_RETRY_BUILD_DIR ?= build/utility-retry
+UTILITY_ID_BUILD_DIR ?= build/utility-id
+UTILITY_THREAD_POOL_BUILD_DIR ?= build/utility-thread-pool
 DOMAIN_BUILD_DIR ?= build/domain
 REPORT_DIR ?= build/reports
 PORTABLE_TARGET ?= thumbv7em-none-eabi
@@ -16,6 +20,10 @@ help:
 		'  utility-test     全C Utilityの単体テスト' \
 		'  utility-event-test Event UtilityのC単体テスト' \
 		'  utility-log-test Log UtilityのC単体テスト' \
+		'  utility-byte-test Byte UtilityのC単体テスト' \
+		'  utility-retry-test Retry UtilityのC単体テスト' \
+		'  utility-id-test ID UtilityのC単体テスト' \
+		'  utility-thread-pool-test Thread Pool UtilityのC単体テスト' \
 		'  domain-test      動的Workflow loaderとDomain ServiceのC単体テスト' \
 		'  utility-event-examples Event Utilityの3サンプルを実行' \
 		'  utility-log-examples Log Utilityの3サンプルを実行' \
@@ -25,6 +33,10 @@ help:
 		'  domain-static-analysis Domain、Unit、動的定義loaderのGCC静的解析' \
 		'  utility-static-analysis 全C UtilityのGCC静的解析' \
 		'  utility-log-static-analysis Log UtilityのGCC静的解析' \
+		'  utility-byte-static-analysis Byte UtilityのGCC静的解析' \
+		'  utility-retry-static-analysis Retry UtilityのGCC静的解析' \
+		'  utility-id-static-analysis ID UtilityのGCC静的解析' \
+		'  utility-thread-pool-static-analysis Thread Pool UtilityのGCC静的解析' \
 		'  docs             Rustdocと全C API/test仕様書を生成' \
 		'  c-docs           Doxygenで全C API/test仕様書を生成' \
 		'  c-docs-check     全headerのDocstring契約を検査' \
@@ -116,7 +128,7 @@ domain-static-analysis:
 		-c src/unit/unit_mock.c \
 		-o /tmp/unit_mock_analyzed.o
 
-utility-static-analysis: utility-log-static-analysis
+utility-static-analysis: utility-log-static-analysis utility-byte-static-analysis utility-retry-static-analysis utility-id-static-analysis utility-thread-pool-static-analysis
 	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
 		-I Utility/event/include -c Utility/event/src/utility_event_buffer.c \
 		-o /tmp/utility_event_buffer_analyzed.o
@@ -244,6 +256,46 @@ utility-log-static-analysis:
 		-c Utility/log/examples/thread_safe_logger.c \
 		-o /tmp/utility_log_threads_example_analyzed.o
 
+utility-byte-static-analysis:
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/byte/include -c Utility/byte/src/utility_byte_reader.c \
+		-o /tmp/utility_byte_reader_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/byte/include -c Utility/byte/src/utility_byte_writer.c \
+		-o /tmp/utility_byte_writer_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/byte/include -I Utility/byte/tests \
+		-c Utility/byte/tests/test_utility_byte.c \
+		-o /tmp/utility_byte_test_analyzed.o
+
+utility-retry-static-analysis:
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/retry/include -c Utility/retry/src/utility_retry.c \
+		-o /tmp/utility_retry_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/retry/include -I Utility/retry/tests \
+		-c Utility/retry/tests/test_utility_retry.c \
+		-o /tmp/utility_retry_test_analyzed.o
+
+utility-id-static-analysis:
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/id/include -c Utility/id/src/utility_id.c \
+		-o /tmp/utility_id_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer \
+		-I Utility/id/include -I Utility/id/tests \
+		-c Utility/id/tests/test_utility_id.c \
+		-o /tmp/utility_id_test_analyzed.o
+
+utility-thread-pool-static-analysis:
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer -pthread \
+		-I Utility/thread_pool/include \
+		-c Utility/thread_pool/src/utility_thread_pool.c \
+		-o /tmp/utility_thread_pool_analyzed.o
+	$(CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fanalyzer -pthread \
+		-I Utility/thread_pool/include -I Utility/thread_pool/tests \
+		-c Utility/thread_pool/tests/test_utility_thread_pool.c \
+		-o /tmp/utility_thread_pool_test_analyzed.o
+
 cppcheck:
 	cppcheck --enable=warning,style,performance,portability \
 		--error-exitcode=1 --std=c11 --suppress=missingIncludeSystem \
@@ -285,6 +337,17 @@ cppcheck:
 		Utility/log/examples/basic_default_logger.c \
 		Utility/log/examples/ring_maintenance.c \
 		Utility/log/examples/thread_safe_logger.c \
+		-I Utility/byte/include Utility/byte/src/utility_byte_reader.c \
+		Utility/byte/src/utility_byte_writer.c \
+		-I Utility/byte/tests Utility/byte/tests/test_utility_byte.c \
+		-I Utility/retry/include Utility/retry/src/utility_retry.c \
+		-I Utility/retry/tests Utility/retry/tests/test_utility_retry.c \
+		-I Utility/id/include Utility/id/src/utility_id.c \
+		-I Utility/id/tests Utility/id/tests/test_utility_id.c \
+		-I Utility/thread_pool/include \
+		Utility/thread_pool/src/utility_thread_pool.c \
+		-I Utility/thread_pool/tests \
+		Utility/thread_pool/tests/test_utility_thread_pool.c \
 		-I src/domain -I src/unit \
 		src/domain/domain_workflow_loader.c \
 		src/domain/domain_workflow.c \
@@ -379,6 +442,11 @@ metrics:
 		Utility/event/src/utility_event_trace_log.c \
 		Utility/log/src/utility_logger.c \
 		Utility/log/src/utility_log_console.c \
+		Utility/byte/src/utility_byte_reader.c \
+		Utility/byte/src/utility_byte_writer.c \
+		Utility/retry/src/utility_retry.c \
+		Utility/id/src/utility_id.c \
+		Utility/thread_pool/src/utility_thread_pool.c \
 		src/domain/domain_workflow_loader.c \
 		src/domain/domain_workflow.c \
 		src/domain/domain_event_publisher.c \
@@ -401,7 +469,7 @@ test: utility-test domain-test
 	cmake --build $(BUILD_DIR)
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
-utility-test: utility-event-test utility-log-test
+utility-test: utility-event-test utility-log-test utility-byte-test utility-retry-test utility-id-test utility-thread-pool-test
 
 utility-event-test:
 	cmake -S Utility/event -B $(UTILITY_BUILD_DIR)
@@ -412,6 +480,26 @@ utility-log-test:
 	cmake -S Utility/log -B $(UTILITY_LOG_BUILD_DIR)
 	cmake --build $(UTILITY_LOG_BUILD_DIR)
 	ctest --test-dir $(UTILITY_LOG_BUILD_DIR) --output-on-failure
+
+utility-byte-test:
+	cmake -S Utility/byte -B $(UTILITY_BYTE_BUILD_DIR)
+	cmake --build $(UTILITY_BYTE_BUILD_DIR)
+	ctest --test-dir $(UTILITY_BYTE_BUILD_DIR) --output-on-failure
+
+utility-retry-test:
+	cmake -S Utility/retry -B $(UTILITY_RETRY_BUILD_DIR)
+	cmake --build $(UTILITY_RETRY_BUILD_DIR)
+	ctest --test-dir $(UTILITY_RETRY_BUILD_DIR) --output-on-failure
+
+utility-id-test:
+	cmake -S Utility/id -B $(UTILITY_ID_BUILD_DIR)
+	cmake --build $(UTILITY_ID_BUILD_DIR)
+	ctest --test-dir $(UTILITY_ID_BUILD_DIR) --output-on-failure
+
+utility-thread-pool-test:
+	cmake -S Utility/thread_pool -B $(UTILITY_THREAD_POOL_BUILD_DIR)
+	cmake --build $(UTILITY_THREAD_POOL_BUILD_DIR)
+	ctest --test-dir $(UTILITY_THREAD_POOL_BUILD_DIR) --output-on-failure
 
 domain-test:
 	cmake -S src/domain -B $(DOMAIN_BUILD_DIR)
@@ -479,6 +567,15 @@ c-docs-check:
 		Utility/event/tests/*.h \
 		Utility/log/include/*.h \
 		Utility/log/tests/*.h \
+		Utility/byte/include/*.h \
+		Utility/byte/tests/*.h \
+		Utility/retry/include/*.h \
+		Utility/retry/tests/*.h \
+		Utility/id/include/*.h \
+		Utility/id/tests/*.h \
+		Utility/thread_pool/include/*.h \
+		Utility/thread_pool/src/*.h \
+		Utility/thread_pool/tests/*.h \
 		src/unit/*.h \
 		src/domain/*.h
 
@@ -522,4 +619,8 @@ clean:
 	cmake -E remove_directory $(BUILD_DIR)
 	cmake -E remove_directory $(UTILITY_BUILD_DIR)
 	cmake -E remove_directory $(UTILITY_LOG_BUILD_DIR)
+	cmake -E remove_directory $(UTILITY_BYTE_BUILD_DIR)
+	cmake -E remove_directory $(UTILITY_RETRY_BUILD_DIR)
+	cmake -E remove_directory $(UTILITY_ID_BUILD_DIR)
+	cmake -E remove_directory $(UTILITY_THREAD_POOL_BUILD_DIR)
 	cmake -E remove_directory $(DOMAIN_BUILD_DIR)
